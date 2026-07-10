@@ -39,18 +39,20 @@ double flow_coeff(double pT = .5) {
 
 int main() {
 
+
+    int numBackgrounds = 50000;
+
     // For checking specs after generation
-    TString output_name = "Background Specs - 9000, etaMax=2";
+    TString output_name = "Background Specs - 50k";
 
     // Create a ROOT output file
-    TFile file("thermalBackgrounds9000,etaMax=2.root", "RECREATE");
+    TFile file("backgrounds50k.root", "RECREATE");
     
     // Lily restricts backgrounds to |eta| < .9. To generate a background covering a wider eta range, I use this multiplier for both eta range and particle multiplicity
-    bool diff_eta = true;
-    double eta_max = 2;
+    double eta_max = .9;
+    bool diff_eta = eta_max == .9 ? false : true;
     double multiplier = eta_max /.9; 
 
-    int numBackgrounds = 9000;
 
     bool flow = true;
 
