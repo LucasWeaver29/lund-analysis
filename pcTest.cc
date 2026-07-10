@@ -7,6 +7,8 @@
 #include "TH1F.h"
 #include "TLine.h"
 #include "TCanvas.h"
+#include "TGraph.h"
+#include "TLegend.h"
 #include "TLatex.h"
 
 #include "eventData.h"
@@ -51,6 +53,8 @@ int main() {
     double part_pt_min = .15;
     bool leading_jet_only = false;
 
+    double cone_area = M_PI * pow(Rparam, 2);
+
     //============================================================
 
     // Declaring graphs
@@ -61,6 +65,7 @@ int main() {
     int pt_numBins = 60;
     double pt_xMin = -.5;
     double pt_xMax = 20;
+    double pt_step = (pt_xMax - pt_xMin) / pt_numBins;
     TH1F* jet_tracks_pt = new TH1F("jet_tracks_pt", "pT of Background Particles in Jet Cone; Track pT; frac{1}{N_jets} dpT", pt_numBins, pt_xMin, pt_xMax);
     TH1F* pc_tracks_pt = new TH1F("pc_tracks_pt", "pT of Background Particles in PC Cone; Track pT; frac{1}{N_jets} dpT", pt_numBins, pt_xMin, pt_xMax);
     
@@ -76,6 +81,7 @@ int main() {
     //TH1F* pc_area = new TH1F("pc_area", "Area of pc", area_numBins, area_xMin, area_xMax);
 
     TGraph* track_pt_ratio_uncorrected = new TGraph();
+    track_pt_ratio_uncorrected->SetTitle("pt track-by-track ratio, jet/pc");
     TGraph* track_pt_ratio_area_corrected = new TGraph();
 
     //==========================================================
@@ -88,7 +94,7 @@ int main() {
 
     //=============================================================
 
-    Begin event loop
+    //Begin event loop
     int numEvents = met.GetEntries();
     int numBackgrounds = mbt.GetEntries();
     if (numBackgrounds < numEvents) {
@@ -140,7 +146,7 @@ int main() {
             for (fastjet::PseudoJet &particle : jet.constituents()) {
                 if (particle.user_index()==1) {
                     jet_tracks_pt->Fill(particle.pt());
-                    event_jet_tracks_pt->Fill(particle.pt());
+                    jet_jet_tracks_pt->Fill(particle.pt());
                 }
             }
             
@@ -153,26 +159,28 @@ int main() {
             for (fastjet::PseudoJet &particle : pc_particles) {
                 if (particle.user_index() == 1) {
                     pc_tracks_pt->Fill(particle.pt());   
-                    event_pc_tracks_pt->Fill(particle.pt());   
+                    jet_pc_tracks_pt->Fill(particle.pt());   
                 }
             }
+
+
+            for (int iBin = 1; iBin <= pt_numBins; iBin++) {
+                // Bin by bin, correct for the different area of the jet cone and the pc
+                track_pt_ratio_area_corrected->AddPoint(pt_step*iBin, (jet.area() / cone_area) * (jet_tracks_pt->GetBinContent(iBin) / pc_tracks_pt->GetBinContent(iBin)));
+            }
+
 
             if (leading_jet_only) break;
             
         } // end jet loop
 
-        for (int iBin = 1; iBin <= pt_num_bins; iBin++) {
-            
-            // Bin by bin, correct for the different area of the jet cone and the pc
-            
-            //track_pt_ratio_uncorrected->AddPoint(step*iBin, jet_tracks_pt->GetBinContent(iBin) / pc_tracks_pt->GetBinContent(iBin));
-        }
+        
 
     } // end event loop
     
-    double step = (pt_xMax - pt_xMin) / pt_nBins;
-    for (int iBin = 1; iBin <= pt_num_bins; iBin++) {
-        track_pt_ratio_uncorrected->AddPoint(step*iBin, jet_tracks_pt->GetBinContent(iBin) / pc_tracks_pt->GetBinContent(iBin));
+
+    for (int iBin = 1; iBin <= pt_numBins; iBin++) {
+        track_pt_ratio_uncorrected->AddPoint(pt_step*iBin, jet_tracks_pt->GetBinContent(iBin) / pc_tracks_pt->GetBinContent(iBin));
     }
 
 
@@ -184,13 +192,22 @@ int main() {
     
     akt_jet_area->Draw("HIST");
     // Add pi R^2 line to akt_jet_area hist
-    double cone_area = M_PI * pow(Rparam, 2);
     TLine* line = new TLine(cone_area, 0, cone_area, akt_jet_area->GetMaximum());
     line->SetLineColor(kRed);
     line->SetLineStyle(2); // for dashed line
     line->Draw("SAME");
 
     c1->Print(output_file_name + ".pdf(", "pdf");
+    c1->Clear();
+
+
+    TLegend* legend = new TLegend(500, 700, 600, 800);
+    legend->AddEntry(track_pt_ratio_uncorrected, "Uncorrected", "l");
+    legend->AddEntry(track_pt_ratio_area_corrected, "Area corrected", "l");
+    c1->cd();
+    track_pt_ratio_uncorrected->Draw();
+    track_pt_ratio_area_corrected->Draw("SAME");
+    c1->Print(output_file_name + ".pdf", "pdf");
     c1->Clear();
 
 
