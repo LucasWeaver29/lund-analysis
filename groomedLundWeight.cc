@@ -40,17 +40,23 @@ int main() {
     
     //TString output_file_name = "9k, groomed";
     TString output_folder = "LundPlanes";
-    TString subfolder = "Scaled3 lite, groomed";
+    TString subfolder = "debug weight issue";
 
     cout << "Make sure you have created the needed subfolder!" << endl;
 
     TString notes = "";
     //"z_cut = .2, beta = 3";
 
-    
+    TH1F* bin_contributions_raw = new TH1F("bin_contributions_raw", "Raw contributions to Lund plane by pT hard bin; pT hard bin; N_{jets} raw", 9, 0, 9);
+    TH1F* bin_contributions_weighted = new TH1F("bin_contributions_weighted", "Weighted contributions to Lund plane by pT hard bin; pT hard bin; N_{jets} weighted", 9, 0, 9);
+    TH1F* bin_jets_raw = new TH1F("bin_jets_raw", "N_{jets} raw per pT hard bin; pT hard bin; N_{jets} raw", 9, 0, 9);
+    TH1F* bin_jets_weighted = new TH1F("bin_jets_weighted", "N_{jets} weighted per pT hard bin; pT hard bin; N_{jets} weighted", 9, 0, 9);
+
+
+
     vector<lund_option> pythia_lund_options = 
         {
-            //lund_option{.name = "Pythia", .sub_options = bg_sub_options{}},
+            lund_option{.name = "Scaled3 Large, pt cuts match bins", .sub_options = bg_sub_options{}},
             //lund_option{"Pythia, SD (Contrib's, first)", bg_sub_options{.groom_options = {"SD_contrib_first"}}},
             //lund_option{"Pythia, SD (mine, first)", bg_sub_options{.groom_options = {"SD_mine_first"}}},
             //lund_option{"Pythia, SD (mine, all)", bg_sub_options{.groom_options = {"SD_mine_all"}}},
@@ -62,20 +68,20 @@ int main() {
             //lund_option{"Background", bg_sub_options{}},
             //lund_option{"Background, SD (mine, all)", bg_sub_options{.groom_options = {"SD_mine_all"}}},
             //lund_option{"Constituent subtraction", bg_sub_options{.event_sub = "ConSub"}},
-            lund_option{"Constituent subtraction, SD (mine, all)", bg_sub_options{.event_sub = "ConSub", .groom_options = {"SD_mine_all"}}},
+            //lund_option{"Constituent subtraction, SD (mine, all)", bg_sub_options{.event_sub = "ConSub", .groom_options = {"SD_mine_all"}}},
             //lund_option{"Perpendicular Cone (geometric)", bg_sub_options{.jet_sub = "MyPCGM"}},
             //lund_option{"Perpendicular Cone (geometric), SD (mine, all)", bg_sub_options{.jet_sub = "MyPCGM", .groom_options = {"SD_mine_all"}}}
             /*
             lund_option{"RSD (mine)", bg_sub_options{.jet_sub = "RSD_mine"}},
             lund_option{"RSD (mine), SD (mine, all)", bg_sub_options{.jet_sub = "RSD_mine", .groom_options = {"SD_mine_all"}}},
             lund_option{"RSD (contrib's)", bg_sub_options{.jet_sub = "RSD_contrib"}},
-            lund_option{"RSD (contrib's), SD (mine, all)", bg_sub_options{.jet_sub = "RSD_contrib", .groom_options = {"SD_mine_all"}}},
+            lund_option{"RSD (mine), SD (mine, all)", bg_sub_options{.jet_sub = "RSD_mine", .groom_options = {"SD_mine_all"}}},
             */
         };
 
 
-    TString eventFileName = "event_scaled3Lite.root";
-    TString backgroundFileName = "backgrounds50k.root";
+    TString eventFileName = "event_scaled3Large.root";
+    TString backgroundFileName = "thermalBackgrounds9000.root";
     //"thermalBackgrounds9000,etaMax=2.root";
 
     double ptMin = 20; // Minimum jet pT. 20 for Alice
@@ -137,14 +143,14 @@ int main() {
         // Add lund plane jet pt cuts
         for (int iCut = 0; iCut < ptCutMins.size(); ++iCut) {
             TString name = "pythia_lund_cuts" + pythia_lund_options[iOption].name + to_string(iCut);
-            TString title = space + ptCutMins[iCut] + " < pT_{jet} < " + ptCutMaxs[iCut] + "; " + xAxisName + "; " + yAxisName;
+            TString title = ptCutMins[iCut] + " < pT_{jet} < " + ptCutMaxs[iCut] + "; " + xAxisName + "; " + yAxisName;
             cuts.push_back(new TH2F(name, title, lund_nBinsX, lund_xMin, lund_xMax, lund_nBinsY, lund_yMin, lund_yMax));
         }
         pythia_lund_cuts.push_back(cuts);
 
     }
 
-    /*
+
     vector<TH2F*> bin_cuts;
     int numBins = met.GetNumBins();
     for (int iBin = 0; iBin < numBins; iBin++) {
@@ -152,7 +158,7 @@ int main() {
         bin_cuts.push_back(new TH2F((TString)"binCut" + iBin, "pT Hat Bin:" + space + (*met.pt_hat_bin)[0] + " to " + (*met.pt_hat_bin)[1] + "; " + xAxisName + "; " + yAxisName, lund_nBinsX, lund_xMin, lund_xMax, lund_nBinsY, lund_yMin, lund_yMax));
     
     }
-    */
+
 
 
     //vector<TString> bg_file_names;
@@ -188,14 +194,14 @@ int main() {
     int numEvents = met.GetEntries();
     //std::cout << "Number of events: " << numEvents << std::endl;
 
-    
+    /*
     int numBackgrounds = mbt.GetEntries();
     if (numBackgrounds < numEvents) {
         cout << "Warning: There are " << numEvents << " provided events but only" << numBackgrounds << " provided backgrounds." << endl;
         cout << "Lund plane creation will stop once backgrounds run out" << endl;
         numEvents = numBackgrounds;
     }
-    
+    */
 
     int counter = 1000;
 
@@ -227,14 +233,21 @@ int main() {
                 double logkt = log(vars.kt);
                 pythia_lund_cuts[iOption][0]->Fill(logR0_R,logkt, met.bin_weight); // The inclusive pt lund
                 pythia_lund_cuts[iOption][vars.num_cut + 1]->Fill(logR0_R,logkt, met.bin_weight); // the jet pt cut lund (which is at iCut + 1 in pythia_lund_cuts);
-                //bin_cuts[met.event_iBin]->Fill(logR0_R,logkt, met.bin_weight);
+                bin_contributions_raw->Fill(met.event_iBin);
+                bin_contributions_weighted->Fill(met.event_iBin, met.bin_weight);
+                if (vars.num_jet > nJet) { // A new jet for this event
+                    nJet = vars.num_jet;
+                    bin_jets_raw->Fill(met.event_iBin);
+                    bin_jets_weighted->Fill(met.event_iBin, met.bin_weight);
+                }
+                bin_cuts[met.event_iBin]->Fill(logR0_R,logkt, met.bin_weight);
             }
         }
         
 
         // Embedding in the background
-        vector<fastjet::PseudoJet> background_prtcls = mbt.get_particles(iEvent, part_pt_min);
-        move(background_prtcls.begin(), background_prtcls.end(), back_inserter(event_particles));
+        //vector<fastjet::PseudoJet> background_prtcls = mbt.get_particles(iEvent, part_pt_min);
+        //move(background_prtcls.begin(), background_prtcls.end(), back_inserter(event_particles));
 
         if (debug) cout << "Looping through background_lund_options" << endl;
         for (int iOption = 0; iOption < bg_lund_options.size(); ++iOption) {
@@ -280,7 +293,7 @@ int main() {
     double area = ((lund_xMax - lund_xMin)/lund_nBinsX) * ((lund_yMax-lund_yMin)/lund_nBinsY); // For normalization
 
     // Weighted analysis
-    //vector<TH1F*> weight_analysis_hists = {bin_contributions_raw, bin_contributions_weighted, bin_jets_raw, bin_jets_weighted};
+    vector<TH1F*> weight_analysis_hists = {bin_contributions_raw, bin_contributions_weighted, bin_jets_raw, bin_jets_weighted};
 
     // Pythia ================================================
     for (int iOption = 0; iOption < pythia_lund_options.size(); ++iOption) {
@@ -336,7 +349,6 @@ int main() {
             c1->Clear();
         }
 
-        /*
         for (TH1F* hist : weight_analysis_hists) {
             c1->cd();
             hist->Draw("HIST");
@@ -350,7 +362,7 @@ int main() {
             c1->Print(output_folder + "/" + subfolder + "/"  + pythia_lund_options[iOption].name + ".pdf","pdf");
             c1->Clear();
         }
-        */
+        
 
         c1->cd();
         c1->SetLogy(1);
@@ -362,7 +374,7 @@ int main() {
     } // End pythia file loop
     
 
-    
+    /*
     // bg Lunds ======================================================
     for (int iOption = 0; iOption < bg_lund_options.size(); ++iOption) {
         
@@ -424,7 +436,7 @@ int main() {
         c1->SetLogy(0);
 
     } // End file loop
-    
+    */
 
     // =======================================
     // Messing with it manually to directly subtract two lund planes
