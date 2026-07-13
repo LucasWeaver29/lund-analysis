@@ -47,16 +47,10 @@ int main() {
     TString notes = "";
     //"z_cut = .2, beta = 3";
 
-    TH1F* bin_contributions_raw = new TH1F("bin_contributions_raw", "Raw contributions to Lund plane by pT hard bin; pT hard bin; N_{jets} raw", 9, 0, 9);
-    TH1F* bin_contributions_weighted = new TH1F("bin_contributions_weighted", "Weighted contributions to Lund plane by pT hard bin; pT hard bin; N_{jets} weighted", 9, 0, 9);
-    TH1F* bin_jets_raw = new TH1F("bin_jets_raw", "N_{jets} raw per pT hard bin; pT hard bin; N_{jets} raw", 9, 0, 9);
-    TH1F* bin_jets_weighted = new TH1F("bin_jets_weighted", "N_{jets} weighted per pT hard bin; pT hard bin; N_{jets} weighted", 9, 0, 9);
-
-
 
     vector<lund_option> pythia_lund_options = 
         {
-            lund_option{.name = "Scaled3 Large, pt cuts match bins", .sub_options = bg_sub_options{}},
+            lund_option{.name = "From density Large", .sub_options = bg_sub_options{}},
             //lund_option{"Pythia, SD (Contrib's, first)", bg_sub_options{.groom_options = {"SD_contrib_first"}}},
             //lund_option{"Pythia, SD (mine, first)", bg_sub_options{.groom_options = {"SD_mine_first"}}},
             //lund_option{"Pythia, SD (mine, all)", bg_sub_options{.groom_options = {"SD_mine_all"}}},
@@ -80,7 +74,8 @@ int main() {
         };
 
 
-    TString eventFileName = "event_scaled3Large.root";
+    TString eventFileName = "event_fromDensityLarge.root";
+    //"event_scaled3Large.root";
     TString backgroundFileName = "thermalBackgrounds9000.root";
     //"thermalBackgrounds9000,etaMax=2.root";
 
@@ -143,7 +138,7 @@ int main() {
         // Add lund plane jet pt cuts
         for (int iCut = 0; iCut < ptCutMins.size(); ++iCut) {
             TString name = "pythia_lund_cuts" + pythia_lund_options[iOption].name + to_string(iCut);
-            TString title = ptCutMins[iCut] + " < pT_{jet} < " + ptCutMaxs[iCut] + "; " + xAxisName + "; " + yAxisName;
+            TString title = space + ptCutMins[iCut] + " < pT_{jet} < " + ptCutMaxs[iCut] + "; " + xAxisName + "; " + yAxisName;
             cuts.push_back(new TH2F(name, title, lund_nBinsX, lund_xMin, lund_xMax, lund_nBinsY, lund_yMin, lund_yMax));
         }
         pythia_lund_cuts.push_back(cuts);
@@ -158,6 +153,11 @@ int main() {
         bin_cuts.push_back(new TH2F((TString)"binCut" + iBin, "pT Hat Bin:" + space + (*met.pt_hat_bin)[0] + " to " + (*met.pt_hat_bin)[1] + "; " + xAxisName + "; " + yAxisName, lund_nBinsX, lund_xMin, lund_xMax, lund_nBinsY, lund_yMin, lund_yMax));
     
     }
+
+    TH1F* bin_contributions_raw = new TH1F("bin_contributions_raw", "Raw contributions to Lund plane by pT hard bin; pT hard bin; N_{jets} raw", met.GetNumBins(), 0, met.GetNumBins());
+    TH1F* bin_contributions_weighted = new TH1F("bin_contributions_weighted", "Weighted contributions to Lund plane by pT hard bin; pT hard bin; N_{jets} weighted", met.GetNumBins(), 0, met.GetNumBins());
+    TH1F* bin_jets_raw = new TH1F("bin_jets_raw", "N_{jets} raw per pT hard bin; pT hard bin; N_{jets} raw", met.GetNumBins(), 0, met.GetNumBins());
+    TH1F* bin_jets_weighted = new TH1F("bin_jets_weighted", "N_{jets} weighted per pT hard bin; pT hard bin; N_{jets} weighted", met.GetNumBins(), 0, met.GetNumBins());
 
 
 
@@ -373,6 +373,19 @@ int main() {
 
     } // End pythia file loop
     
+
+
+    // Idealy, each bin is making the same number of raw contributions to the lund plane, because there is some number of contributions it takes to smooth out the plane
+    // Multiplying the current number of events in each bin by the new multiplier will bring it to a number of events that gets desired_num_contributions to the lund plane
+    int desired_num_contributions = 1;
+    cout << "{";
+    for (int iBin = 0; iBin < met.GetNumBins(); iBin++) {
+        met.GetBinEntry(iBin);
+        //print_bin(*met.pt_hat_bin);
+        //cout << "Multiplier: " << desired_num_contributions / bin_contributions_raw->GetBinContent(iBin+1) << endl;
+        cout << desired_num_contributions / bin_contributions_raw->GetBinContent(iBin+1) << ", ";
+    }
+    cout << "}" << endl;
 
     /*
     // bg Lunds ======================================================

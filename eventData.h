@@ -19,9 +19,10 @@ class my_event_tree {
 
 public:
     // Variables to access event data from TTrees
-    double ptHatMin, ptHatMax, crossSection, weight;
-    double pTHat;
-    double iBin; // bin_weight
+    int ptHatMin, ptHatMax;
+    double bin_weight;
+    //double pTHat;
+    int event_iBin; 
     int numParticles;
     std::vector<double>* px = nullptr;
     std::vector<double>* py = nullptr;
@@ -33,8 +34,8 @@ public:
     TFile event_file;
     TTree* event_tree;
 
-    TTree* weight_tree; // bin_weight
-    double bin_weight; // bin_weight
+    std::vector<int>* pt_hat_bin = nullptr;
+    TTree* bins_tree;
 
     // constructor
     my_event_tree(TString event_file_name):
@@ -49,18 +50,12 @@ public:
         if (!event_tree) {
             std::cout << "Error: Could not find 'events' tree in ROOT file" << std::endl;
         }
-        // Get weight TTree // bin_weight
-        weight_tree = (TTree*)event_file.Get("weights");
-        if (!event_tree) {
-            std::cout << "Error: Could not find 'weights' tree in ROOT file" << std::endl;
-        }
-
-
+        
         // set branches
         event_tree->SetBranchAddress("ptHatMin", &ptHatMin);
         event_tree->SetBranchAddress("ptHatMax", &ptHatMax);
         //event_tree->SetBranchAddress("crossSection", &crossSection);
-        //event_tree->SetBranchAddress("weight", &weight);
+        event_tree->SetBranchAddress("bin_weight", &bin_weight);
         event_tree->SetBranchAddress("numParticles", &numParticles);
         event_tree->SetBranchAddress("px", &px);
         event_tree->SetBranchAddress("py", &py);
@@ -68,8 +63,17 @@ public:
         event_tree->SetBranchAddress("energy", &energy);
         event_tree->SetBranchAddress("eta", &eta);
         event_tree->SetBranchAddress("pdgId", &pdgId);
-        if (event_file_name == "events1000x9_ptHat.root") event_tree->SetBranchAddress("pTHat", &pTHat);
-        weight_tree->SetBranchAddress("bin_weight", &bin_weight); // bin_weight
+        event_tree->SetBranchAddress("event_iBin", &event_iBin);
+        //if (event_file_name == "events1000x9_ptHat.root") event_tree->SetBranchAddress("pTHat", &pTHat);
+
+        // Get pT Hat Bins TTree
+        bins_tree = (TTree*)event_file.Get("ptHatBins");
+        if (!bins_tree) {
+            std::cout << "Error: Could not find 'ptHatBins' tree in ROOT file" << std::endl;
+        }
+        bins_tree->SetBranchAddress("pt_hat_bin", &pt_hat_bin);
+
+
 
     } // end constructor
 
@@ -78,19 +82,26 @@ public:
     }
     void GetEntry(int iEvent) {
         event_tree->GetEntry(iEvent);
-        weight_tree->GetEntry(iBin);
+    }
+
+    int GetNumBins() {
+        return bins_tree->GetEntries();
+    }
+    void GetBinEntry(int iBin) {
+        bins_tree->GetEntry(iBin);
     }
     
     
-    std::vector<fastjet::PseudoJet> get_particles(int iEvent, double part_eta_max = .9) { // Returns the final, charged, |etc| < max particles saved by storeWithRoot
+    std::vector<fastjet::PseudoJet> get_particles(int iEvent, double part_eta_max, double part_pt_min = 0) { // Returns the final, charged, |etc| < max particles saved by storeWithRoot
         
         std::vector<fastjet::PseudoJet> event_particles;
         GetEntry(iEvent);
         //event_tree->GetEntry(iEvent);
-        //weight_tree->GetEntry(iBin);
+        //weight_tree->GetEntry(event_iBin);
         for (int iPart=0; iPart<numParticles; ++iPart) {
 
             if(abs((*eta)[iPart]) > part_eta_max) continue;
+            if((pow((*px)[iPart],2) + pow((*py)[iPart],2)) < pow(part_pt_min,2)) continue;
             
             event_particles.push_back(fastjet::PseudoJet((*px)[iPart], (*py)[iPart],(*pz)[iPart],(*energy)[iPart]));
         }
@@ -147,11 +158,12 @@ public:
         bg_tree->GetEntry(iEvent);
     }
 
-    std::vector<fastjet::PseudoJet> get_particles(int iEvent) {
+    std::vector<fastjet::PseudoJet> get_particles(int iEvent, double part_pt_min = 0) {
         // Particle loop. These are the final, charged, |etc| < max particles saved by storeWithRoot
         std::vector<fastjet::PseudoJet> bg_particles;
         bg_tree->GetEntry(iEvent);
         for (int iPart=0; iPart<numBGparts; ++iPart) {
+            if ((*bgPts)[iPart] < part_pt_min) continue;
             fastjet::PseudoJet bg_prtcl;
             bg_prtcl.reset_PtYPhiM((*bgPts)[iPart],(*bgEtas)[iPart],(*bgPhis)[iPart], 0);
             bg_particles.push_back(bg_prtcl);        
