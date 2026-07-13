@@ -144,6 +144,7 @@ class my_pc_subtractor {
     {
         max_pt_diff = 100; // We're not using this currently
         Rparam = Rparam_in;
+        cone_area = M_PI * pow(Rparam_in, 2);
         part_eta_max = part_eta_max_in;
         //r_recluster = r_recluster_in;
     }
@@ -152,6 +153,7 @@ class my_pc_subtractor {
     fastjet::JetDefinition jet_recluster_def;
     double max_pt_diff;
     double Rparam;
+    double cone_area;
     double part_eta_max;
     //double r_recluster;
 
@@ -231,7 +233,7 @@ class my_pc_subtractor {
 
         fastjet::ClusterSequenceArea csa(jet.constituents(), jet_recluster_def, area_def);
         if (csa.inclusive_jets().size() != 1) cout << "NOTE: A jet reclustered with ghosts to get area in geometric_subtract_constit reclustered into " csa.inclusive_jets().size() << " jets." << endl;
-        double jet_area = sorted_by_pt(csa.inclusvie_jets())[0];
+        double jet_area = sorted_by_pt(csa.inclusvie_jets())[0].area();
 
         fastjet::PseudoJet pc_axis;
 
