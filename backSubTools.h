@@ -3,6 +3,7 @@
 
 #include "fastjet/PseudoJet.hh"
 #include "fastjet/ClusterSequence.hh"
+#include "fastjet/ClusterSequenceArea.hh"
 #include "fastjet/Selector.hh"
 
 #include "fastjet/tools/Filter.hh"
@@ -11,6 +12,9 @@
 #include "fastjet/contrib/ConstituentSubtractor.hh" // jet by jet constituent-based subtraction
 #include "fastjet/contrib/SoftKiller.hh"
 #include "fastjet/contrib/RecursiveSoftDrop.hh"
+#include "fastjet/contrib/SoftDrop.hh"
+
+#include "algorithm"
 
 using namespace Pythia8;
 
@@ -27,6 +31,40 @@ double median(vector<double> v) {
     }
 }
 
+bool contains_TString(vector<TString> vec, TString x) {
+    return (std::find(vec.begin(), vec.end(), x) != vec.end());
+}
+
+// return a TString representation of a double, rounded to nearest .1
+TString to_string_round(double num) {
+    if (num < 1) {
+        return "." + to_string((int)(10*num));
+    }
+    else {
+        return to_string((int)num) + "." + to_string((int)(10*fmod(num, 1.0)));
+    }
+}
+
+void print_bin (std::vector<int> bin) {
+    cout << "pt of " << bin[0] << " to " << bin[1] << ", " << bin[2] << " events." << endl;
+}
+
+void print_bins (std::vector<vector<int>> bins) {
+    for (int iBin = 0; iBin < bins.size(); iBin++) {
+        cout << "Bin " << iBin << ": ";
+        print_bin(bins[iBin]);
+    }
+}
+
+void print_bins2code (std::vector<vector<int>> bins) {
+    cout << "vector<vector<int>> bins = {" << endl;
+    for (int iBin = 0; iBin < bins.size(); iBin++) {
+        cout << "{" << bins[iBin][0] << ", " << bins[iBin][1] << ", " << bins[iBin][2] << (iBin == bins.size()-1? "}" : "},") << endl;
+    }
+    cout << "};" << endl;
+
+}
+
 
 TString bool2Str(bool b) {return b? "True" : "False";}
 
@@ -35,7 +73,7 @@ TString bool2Str(bool b) {return b? "True" : "False";}
 
 // Takes a CA clustered jet, returns constituents after applying recursive softdrop. 
 // from https://arxiv.org/pdf/1804.03657
-vector<fastjet::PseudoJet> recursive_soft_drop_constit(const fastjet::PseudoJet& jet, int N = 3, double z_cut = .2, double beta = 0, double Rparam = .4){
+vector<fastjet::PseudoJet> recursive_soft_drop_constit(const fastjet::PseudoJet& jet, double Rparam, int N = 5, double z_cut = .2, double beta = 0){
 
     vector<fastjet::PseudoJet> branches;
     double n = 0;
@@ -47,7 +85,7 @@ vector<fastjet::PseudoJet> recursive_soft_drop_constit(const fastjet::PseudoJet&
 
         // "2. Take the remaining branch whose two parent subjets have the widest separation in delta R"
         // Find greatest delta:
-        double widest_delta = 1;
+        double widest_delta = Rparam;
         int iWidest = -1;
         for (int iBranch = 0; iBranch < branches.size(); ++iBranch) {
             if (branches[iBranch].has_parents(j1, j2)) {
@@ -106,7 +144,7 @@ public:
     //double part_eta_max;
 
     // constructor
-    RhoEstimator(double Rparam, double jet_eta_max = .5, double part_eta_max = .9):
+    RhoEstimator(double Rparam, double jet_eta_max, double part_eta_max):
     area_def(fastjet::active_area, fastjet::GhostedAreaSpec(part_eta_max)),
     jet_def(fastjet::kt_algorithm, Rparam, fastjet::E_scheme, fastjet::Best)
     {
@@ -144,31 +182,34 @@ public:
 class my_pc_subtractor {
   
 public:
+
     // constructor - Rparam so pc radius matches jet radius.
-    my_pc_subtractor(double Rparam = .4, fastjet::JetAlgorithm algo = fastjet::cambridge_algorithm, double r_recluster_in = 1):
-    r_selector(fastjet::SelectorCircle(Rparam)),
-    jet_recluster_def(algo, r_recluster_in, fastjet::E_scheme, fastjet::Best)
+    my_pc_subtractor(double Rparam_in, fastjet::JetAlgorithm algo = fastjet::cambridge_algorithm):
+    r_selector(fastjet::SelectorCircle(Rparam_in)),
+    jet_recluster_def(algo, Rparam_in + .3, fastjet::E_scheme, fastjet::Best)
     {
         max_pt_diff = 100; // We're not using this currently
+        Rparam = Rparam_in;
         //r_recluster = r_recluster_in;
     }
 
     fastjet::Selector r_selector;
     fastjet::JetDefinition jet_recluster_def;
     double max_pt_diff;
+    double Rparam;
     //double r_recluster;
 
 
     // Takes in a jet to apply perpendicular cone subtraction to, and all particles in the event
     // Returns that jet's constituents (vector<PseudoJet>) after applying perpendicular cone subtraction.
-    vector<fastjet::PseudoJet> subtract_constit(const fastjet::PseudoJet& jet, vector<fastjet::PseudoJet> particles) {
-   
+    vector<fastjet::PseudoJet> kt_subtract_constit(const fastjet::PseudoJet& jet, vector<fastjet::PseudoJet> particles) {
+
         fastjet::PseudoJet pc_axis;
 
         pc_axis.reset_PtYPhiM(0,jet.eta(), fmod(jet.phi() + M_PI/2 , 2*M_PI));
             
-        // selector to find all particles with R = .4 of leading jet
-        //fastjet::Selector r_selector = fastjet::SelectorCircle(.4);
+        // selector to find all particles with Rparam of leading jet
+        //fastjet::Selector r_selector = fastjet::SelectorCircle(Rparam);
         r_selector.set_reference(pc_axis);
             
         vector<fastjet::PseudoJet> pc_tracks = r_selector(particles);
@@ -202,28 +243,124 @@ public:
 
     }
 
-    // Subtracts as subtract_constit(), but then reclusters into single pseduojet
-    fastjet::PseudoJet subtract(const fastjet::PseudoJet& jet, vector<fastjet::PseudoJet> particles) {
-        vector<fastjet::PseudoJet> constituents = subtract_constit(jet, particles);
+    // Subtracts as kt_subtract_constit(), but then reclusters into single pseduojet
+    fastjet::PseudoJet kt_subtract(const fastjet::PseudoJet& jet, vector<fastjet::PseudoJet> particles) {
+        vector<fastjet::PseudoJet> constituents = kt_subtract_constit(jet, particles);
         vector<fastjet::PseudoJet> pc_reclust_jets = fastjet::ClusterSequence(constituents, jet_recluster_def).inclusive_jets(0);
         if (pc_reclust_jets.size() == 0) {
             //cout << "Warning: pc-subtracted jet reclustered into 0 jets" << endl; //Some jets recluster to 0 jets
             return fastjet::PseudoJet(0,0,0,0);
         }
         else if (pc_reclust_jets.size() > 1) {
-            //cout << "Warning: pc subtracted jet reclustered into " << pc_reclust_jets.size() << "jets." << endl; // Some jets recluster into more than 1 if R_recluster = .4
+            //cout << "Warning: pc subtracted jet reclustered into " << pc_reclust_jets.size() << "jets." << endl; // Some jets recluster into more than 1 if R_recluster = Rparam
         }
         
         return pc_reclust_jets[0];
 
     }
 
+    vector<fastjet::PseudoJet> get_pc_particles(const fastjet::PseudoJet& jet, vector<fastjet::PseudoJet> particles) {
+        fastjet::PseudoJet pc_axis;
+        pc_axis.reset_PtYPhiM(0,jet.eta(), fmod(jet.phi() + M_PI/2 , 2*M_PI));
+        r_selector.set_reference(pc_axis);    
+        return r_selector(particles);
+    }
+
+    // This one matches pc particles geometrically with event particles 
+    // Takes in a jet to apply perpendicular cone subtraction to, and all particles in the event
+    // Returns that jet's constituents (vector<PseudoJet>) after applying perpendicular cone subtraction.
+    vector<fastjet::PseudoJet> geometric_subtract_constit(const fastjet::PseudoJet& jet, vector<fastjet::PseudoJet> particles) {        
+
+        fastjet::PseudoJet pc_axis;
+
+        pc_axis.reset_PtYPhiM(0,jet.eta(), fmod(jet.phi() + M_PI/2 , 2*M_PI));
+            
+        // selector to find all particles with Rparam of leading jet
+        //fastjet::Selector r_selector = fastjet::SelectorCircle(Rparam);
+        r_selector.set_reference(pc_axis);
+            
+        vector<fastjet::PseudoJet> pc_tracks = r_selector(particles);
+        for (fastjet::PseudoJet& track : pc_tracks) { // make a set of "ghost particles" by shifting pc tracks into original jet cone
+            track.reset_PtYPhiM(track.pt(), track.eta(), fmod(track.phi() - M_PI/2 , 2*M_PI), track.m());
+        }
+
+        vector<fastjet::PseudoJet> constituents = jet.constituents();
+
+        for (fastjet::PseudoJet track : pc_tracks) {
+            while (true) {
+                double smallest_delta = Rparam;
+                
+                // Find jet constituent closest to ghost particles 
+                int i_match = -1;
+                for (int iCon = 0; iCon < constituents.size(); ++iCon) {
+                    
+                    double temp_delta = track.delta_R(constituents[iCon]);
+
+                    if (temp_delta < smallest_delta) {
+                        smallest_delta = temp_delta;
+                        i_match = iCon;
+                    }
+                }
+
+                if (i_match == -1) break; // move to next track
+                
+                if (constituents[i_match].pt() - track.pt() >= 0) {
+                    constituents[i_match] -= track;
+                    break;
+                }
+                else {
+                    track -= constituents[i_match];
+                    constituents.erase(constituents.begin() + i_match);
+                    continue; // Match this subtracted track to another jet constituent
+                }
+
+            }
+
+        }
+        
+
+        return constituents;
+
+    }
+
+
 };
 
 
+/*
+Event wide subtraction options
+"ConSub" - Contrib's Constituent Subtraction
+"ConSubRho" - Contrib's Constituent Subtraction, with manual rho
+"SoftKill" - Contrib's SoftKill
+
+Jet subtraction options
+"MyPCkT" - My perpendindicular Cone, with only kt match
+"MyPCGM" - My perpendindicular Cone, geometric match
+"PCParts" - Use PC particles instead of jet particles
+"Filter" - filter
+"Prune" - Prune
+"RSD_mine" - my recursive softdrop
+"RSD_contrib" - contrib's softdrop
+"Constituents" - return just the jet's constituents
+"Recluster_CA" - Recluster according to CA
+
+Recluster options
+"SD_mine_first"
+"SD_mine_all"
+"SD_contrib_first"
+*/
+
 
 struct bg_sub_options {
+    TString event_sub = "null";
+    TString jet_sub = "null";
+    vector<TString> groom_options = {};
+    
+    
+    /*
     bool my_pc = false;
+    bool my_pc_geometric_match = false;
+    bool pc_particles = false;
     bool filter = false;
     bool prune = false;
     bool constit_sub = false; // Uses rho to generate background ghost particles, who's pt are subtracted from jet particles
@@ -231,7 +368,10 @@ struct bg_sub_options {
     bool soft_kill = false; // Removes particles until rho of event = 0
     bool my_rsd = false; // Recursive Soft Drop: Applies softdrop to branches until soft drop condition has been met N times. Makes no difference for R_g because it only matters that the soft drop condition is being applied to the first clustering. 
     bool contrib_rsd = false;
-    bool soft_drop = false; // Apply softDrop cut while declustering CA jet
+    bool my_softDrop = false; // Apply softDrop cut while declustering CA jet
+    bool contrib_softDrop = false;
+    */
+
     TH1F* jet_pt_hist = nullptr;
     TH1F* jet_pt_hist_unweighted = nullptr;
     double bin_weight = 0;
@@ -239,6 +379,10 @@ struct bg_sub_options {
     //double nJets_weighted = -1;
 };
 
+struct lund_kin_vars {
+    double delta, kt;
+    int num_cut, num_jet;
+};
 
 
 
@@ -251,9 +395,10 @@ public:
     // General
     double ptMin;
     double ptMax;
-    double jet_eta_max = .5;
-    double Rparam = .4;
+    double jet_eta_max;
+    double Rparam;
     bool leading_jet_only;
+    bool debug = false;
 
     fastjet::JetDefinition jetDef_akt; // for jet identification
     fastjet::JetDefinition jetDef_ca_recluster; // for reclustering the antikt-identified jets to make Lund plane
@@ -295,18 +440,20 @@ public:
 
     // RecursiveSoftDrop - fastjet contrib
     fastjet::contrib::RecursiveSoftDrop rsd;
+
+    fastjet::contrib::SoftDrop sd;
     
 
     // constructor
-    LundGroomer(double ptMin_in, double ptMax_in, bool leading_jet_only_in, double Rparam_in = .4, double jet_eta_max_in = .5, double part_eta_max_in = .9):
+    LundGroomer(double ptMin_in, double ptMax_in, bool leading_jet_only_in, double Rparam_in, double jet_eta_max_in, double part_eta_max_in):
     jetDef_akt(
         fastjet::antikt_algorithm, 
-        Rparam, 
+        Rparam_in, 
         fastjet::E_scheme, 
         fastjet::Best),
     jetDef_ca_recluster(
         fastjet::cambridge_algorithm, 
-        1, 
+        Rparam_in + .4, 
         fastjet::E_scheme, 
         fastjet::Best),
     rho_estimator(Rparam_in, jet_eta_max_in, part_eta_max_in),
@@ -319,7 +466,8 @@ public:
     bge(part_eta_max_in, .5), // particle eta max, grid spacing
     subtractor(&bge),
     soft_killer(part_eta_max_in, .4), // rapidity max, grid_size
-    rsd(beta, z_cut, Rparam)
+    rsd(beta, z_cut, 5), // beta, z_cut, N (# of iterations)
+    sd(beta, z_cut)
         {
         Rparam = Rparam_in;
         jet_eta_max = jet_eta_max_in;
@@ -355,62 +503,165 @@ public:
         // Takes event particles, int to count number of jets, int to record iCut, bg_sub_options.
     // Finds jets with akt. Reclusters those jets using CA.
     // returns a vector of the delta of the kinematic variables of those jets' splittings for the lund plane.
-    vector<vector<double>> get_kin_vars(vector<fastjet::PseudoJet> particles, bg_sub_options ops = bg_sub_options{}) {
+    vector<lund_kin_vars> get_kin_vars(vector<fastjet::PseudoJet> particles, bg_sub_options ops = bg_sub_options{}) {
 
-        vector<vector<double>> kinematic_vars;
+        vector<lund_kin_vars> all_kinematic_vars;
 
-        if (ops.constit_sub) {
+        if (debug) cout << "Beginning event wide subtractions" << endl;
+        if (ops.event_sub == "ConSub") {
             bge.set_particles(particles);
             particles = subtractor.subtract_event(particles);
+            if (particles.empty()) cout << "No remaining particles after contrib constituent subtraction" << endl;
         }
-        else if (ops.constit_sub_manual) {
+        else if (ops.event_sub == "ConSubRho") {
+            bge.set_particles(particles);
             //double rho = rho_estimator.rho();
-            fastjet::contrib::ConstituentSubtractor manual_subtractor(rho_estimator.rho(particles) * 1.3);
+            fastjet::contrib::ConstituentSubtractor manual_subtractor(bge.rho());
             particles = manual_subtractor.subtract_event(particles);
+            if (particles.empty()) {
+                cout << "No remaining particles after bigger rho constituent subtraction" << endl;
+                return all_kinematic_vars;
+            }
         }
-        else if (ops.soft_kill) {
+        else if (ops.event_sub == "SoftKill") {
             vector<fastjet::PseudoJet> soft_killed_event;
             double pt_thresh = 0; // pt threshold for killed particles
             soft_killer.apply(particles, soft_killed_event, pt_thresh);
             particles = soft_killed_event;
         }
+        else if (ops.event_sub == "null") {;}
+        else cout << "Warning: Unknown event subtraction request" << endl;
 
+        
+        
+
+        
         fastjet::ClusterSequence clust_seq(particles, jetDef_akt);
         vector<fastjet::PseudoJet> jets = sorted_by_pt(jet_eta_selector(clust_seq.inclusive_jets()));
 
-        for (const fastjet::PseudoJet& jet : jets) { 
+        int jet_counter = -1;
+
+        if (debug) cout << "Looping through akt jets" << endl;
+        for (fastjet::PseudoJet& jet : jets) {  
+
+            jet_counter ++;
+            if (debug) {
+                cout << "Jet num " << jet_counter << endl;
+            }
 
             vector<fastjet::PseudoJet> constituents;
             
-            if (ops.my_pc) {
-                constituents = pc_subtractor.subtract_constit(jet, particles);
-                if (constituents.empty()) continue;
+            // First, things that act based on the akt jet, and return constituents
+            if (ops.jet_sub == "MyPCkT") {
+                constituents = pc_subtractor.kt_subtract_constit(jet, particles);
+                if(debug && constituents.empty()) cout << "No remaining constituents after my pc subtraction" << endl;
             }
-            else if (ops.filter) {
-                constituents = filter(jet).constituents();
+            else if (ops.jet_sub == "MyPCGM") {
+                constituents = pc_subtractor.geometric_subtract_constit(jet, particles); 
+                if(debug && constituents.empty()) cout << "No remaining constituents after my pc geometric match subtraction" << endl;
             }
-            else if (ops.prune) {
-                constituents = pruner(jet).constituents();
+            else if (ops.jet_sub =="PC_parts") {
+                constituents = pc_subtractor.get_pc_particles(jet, particles);
+                if(debug && constituents.empty()) cout << "No remaining constituents in perpendicular cone" << endl;
             }
-            else if (ops.my_rsd) {
-                constituents = recursive_soft_drop_constit(jet);
+            else if (ops.jet_sub == "RSD_mine") {
+                fastjet::ClusterSequence reclusterSeq_temp(jet.constituents(), jetDef_ca_recluster);
+                fastjet::PseudoJet reclustered_jet = sorted_by_pt(reclusterSeq_temp.inclusive_jets())[0];
+                constituents = recursive_soft_drop_constit(reclustered_jet, Rparam);
             }
-            else if (ops.contrib_rsd) {
-                constituents = rsd(jet).constituents();
+            else {
+                constituents = jet.constituents();
             }
-            else constituents = jet.constituents();
+
+            if (constituents.empty()) {
+                break; // Breaks are used because jets are in pt order, so once one has no remaining particles after subtraction, we've reacehed the jets that are all/mostly backgroun
+            }
 
             fastjet::ClusterSequence reclusterSeq(constituents, jetDef_ca_recluster);
-            fastjet::PseudoJet reclustered_jet = sorted_by_pt(reclusterSeq.inclusive_jets())[0];
-          
-            if ((reclustered_jet.pt() < ptMin) || (reclustered_jet.pt() > ptMax)) continue; // jets are in pt order
+            jet = sorted_by_pt(reclusterSeq.inclusive_jets())[0];
+            
+            // Next, the things that work only on an already CA reclustered jet, and return a new jet
+            if  (ops.jet_sub == "Filter") {
+                jet = filter(jet);
+            }
+            else if (ops.jet_sub == "Prune") {
+                jet = pruner(jet);
+            }
+            else if (ops.jet_sub == "RSD_contrib") {
+                jet = rsd(jet);
+            }
+            
+            
+            
+            /*
+            // First, things that act based on the akt jet, and return constituents
+            if (ops.jet_sub == "MyPCkT") {
+                vector<fastjet::PseudoJet> constituents = pc_subtractor.kt_subtract_constit(jet, particles);
+                if (debug && constituents.empty()) cout << "No remaining constituents after my pc subtraction" << endl;
+                if (constituents.empty()) break;
+                fastjet::ClusterSequence reclusterSeq(constituents, jetDef_ca_recluster);
+                jet = sorted_by_pt(reclusterSeq.inclusive_jets())[0];
+            }
+            else if (ops.jet_sub == "MyPCGM") {
+                vector<fastjet::PseudoJet> constituents = pc_subtractor.geometric_subtract_constit(jet, particles); 
+                if(debug && constituents.empty()) cout << "No remaining constituents after my pc geometric match subtraction" << endl;
+                if (constituents.empty()) break;
+                fastjet::ClusterSequence reclusterSeq(constituents, jetDef_ca_recluster);
+                jet = sorted_by_pt(reclusterSeq.inclusive_jets())[0];
+            }
+            else if (ops.jet_sub =="PC_parts") {
+                vector<fastjet::PseudoJet> constituents = pc_subtractor.get_pc_particles(jet, particles);
+                if(debug && constituents.empty()) cout << "No remaining constituents in perpendicular cone" << endl;
+                if (constituents.empty()) break;
+                fastjet::ClusterSequence reclusterSeq(constituents, jetDef_ca_recluster);
+                jet = sorted_by_pt(reclusterSeq.inclusive_jets())[0];
+            }
+            // These next ones need to be reclusterd with CA before the jet subtraction technique is applied
+            else if  (ops.jet_sub == "Filter") {
+                //vector<fastjet::PseudoJet> constituents = jet.constituents();
+                fastjet::ClusterSequence reclusterSeq(jet.constituents(), jetDef_ca_recluster);
+                jet = sorted_by_pt(reclusterSeq.inclusive_jets())[0];
+                jet = filter(jet);
+            }
+            else if (ops.jet_sub == "Prune") {
+                fastjet::ClusterSequence reclusterSeq(jet.constituents(), jetDef_ca_recluster);
+                jet = sorted_by_pt(reclusterSeq.inclusive_jets())[0];
+                jet = pruner(jet);
+            }
+            else if (ops.jet_sub == "RSD_contrib") {
+                fastjet::ClusterSequence reclusterSeq(jet.constituents(), jetDef_ca_recluster);
+                jet = sorted_by_pt(reclusterSeq.inclusive_jets())[0];
+                jet = rsd(jet);
+            }
+            // My recursive softdrop needs to be clustered both before and after subtraction
+            else if (ops.jet_sub == "RSD_mine") {
+                fastjet::ClusterSequence reclusterSeq1(jet.constituents(), jetDef_ca_recluster);
+                jet = sorted_by_pt(reclusterSeq1.inclusive_jets())[0];
+                vector<fastjet::PseudoJet> constituents = recursive_soft_drop_constit(jet, Rparam);
+                if (constituents.empty()) break;
+                fastjet::ClusterSequence reclusterSeq2(constituents, jetDef_ca_recluster);
+                jet = sorted_by_pt(reclusterSeq2.inclusive_jets())[0];
+            }
+            // Default is to just recluster by CA
+            else if (ops.jet_sub == "null") {
+                if (debug) cout << "ops.jet_sub == null: Reclustering jet with CA" << endl;
+                fastjet::ClusterSequence reclusterSeq(jet.constituents(), jetDef_ca_recluster);
+                jet = sorted_by_pt(reclusterSeq.inclusive_jets())[0];
+            }
+            else cout << "Warning: Unknown jet subtraction request" << endl;
+            */
+            
+
+
+            if (debug) cout << "Reclustered jet pt" << endl;
+            if ((jet.pt() < ptMin) || (jet.pt() > ptMax)) continue; // jets are in pt order
             // already selected for eta by jet_eta_selector
 
             int iCut;
             if (cuts) { // find which cut this jet is in
                 //int iCut_temp = -1;
                 for (int i = 0; i < ptCutMins.size(); ++i) {
-                    if ((reclustered_jet.pt() > ptCutMins[i]) && (reclustered_jet.pt() < ptCutMaxs[i])) {
+                    if ((jet.pt() > ptCutMins[i]) && (jet.pt() < ptCutMaxs[i])) {
                         //iCut_temp = i;
                         iCut = i;
                         break;
@@ -421,46 +672,65 @@ public:
 
             // Tracking #jets with weighted pt
             if (ops.jet_pt_hist != nullptr && ops.bin_weight != 0) {
-                ops.jet_pt_hist->Fill(reclustered_jet.pt(), ops.bin_weight);
+                ops.jet_pt_hist->Fill(jet.pt(), ops.bin_weight);
                 //ops.jet_pt_hist_unweighted->Fill(jet.pt());
             }
             
+            if (debug) cout << "Beginning grooming + declustering" << endl;
+            if (contains_TString(ops.groom_options, "SD_contrib_first")) {
+                jet = sd(jet);
+            }
 
             fastjet::PseudoJet parent1, parent2;
+            bool first = true;
             // For each jet, iteratively compare branchings
-            while (reclustered_jet.has_parents(parent1, parent2)) { 
+            while (jet.has_parents(parent1, parent2)) { 
                 
                 // In each case, identify the higher pt parent 
                 fastjet::PseudoJet harder  = (parent1.pt() > parent2.pt()) ? parent1 : parent2;
                 fastjet::PseudoJet softer  = (parent1.pt() > parent2.pt()) ? parent2 : parent1;
                 
-                if (harder.pt() > 100) break; // Event 3992 in Events9x1000 seems to be the problem
+                //if (harder.pt() > 100) break; // Event 3992 in Events9x1000 seems to be the problem
 
                 double delta = harder.delta_R(softer);
                 double kt = sin(delta) * softer.pt();
                 
-                if (ops.soft_drop) {
+                if (first && contains_TString(ops.groom_options, "SD_mine_first")) {
+                    first = false;
                     // If softdrop condition is not met, discard lower pt subjet. Otherwise return kinematic variables and continue
-                    if ((softer.pt() / (harder.pt() + softer.pt())) > z_cut * pow(delta/Rparam, beta)) {// soft drop condition
-                        reclustered_jet = harder;
+                    if ((softer.pt() / (harder.pt() + softer.pt())) < z_cut * pow(delta/Rparam, beta)) {// soft drop condition
+                        jet = harder;
                         continue;
                     }
                 }
 
 
-                vector<double> vars = {delta, kt};
-                if (cuts) vars.push_back(iCut);
+                if (contains_TString(ops.groom_options, "SD_mine_all")) {
+                    first = false;
+                    // If softdrop condition is not met, discard lower pt subjet. Otherwise return kinematic variables and continue
+                    if ((softer.pt() / (harder.pt() + softer.pt())) < z_cut * pow(delta/Rparam, beta)) {// soft drop condition
+                        jet = harder;
+                        continue;
+                    }
+                }
 
-                kinematic_vars.push_back(vars);
+                lund_kin_vars vars = {.delta = delta, .kt = kt};
+                vars.num_jet = jet_counter;
 
-                reclustered_jet = harder;
-                
+                //vector<double> vars = {delta, kt};
+                //if (cuts) vars.push_back(iCut);
+                if (cuts) vars.num_cut = iCut;
+
+                all_kinematic_vars.push_back(vars);
+
+                jet = harder;
+                first = false;
             } // end while loop
 
             if (leading_jet_only) break;
 
         } // end jet loop 
-        return kinematic_vars;
+        return all_kinematic_vars;
     } // end decluster() def
 };
 

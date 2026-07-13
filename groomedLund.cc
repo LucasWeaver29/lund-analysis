@@ -50,7 +50,7 @@ int main() {
     
     vector<lund_option> pythia_lund_options = 
         {
-            //lund_option{.name = "Pythia", .sub_options = bg_sub_options{}},
+            lund_option{.name = "Pythia", .sub_options = bg_sub_options{}},
             //lund_option{"Pythia, SD (Contrib's, first)", bg_sub_options{.groom_options = {"SD_contrib_first"}}},
             //lund_option{"Pythia, SD (mine, first)", bg_sub_options{.groom_options = {"SD_mine_first"}}},
             //lund_option{"Pythia, SD (mine, all)", bg_sub_options{.groom_options = {"SD_mine_all"}}},
@@ -62,7 +62,7 @@ int main() {
             //lund_option{"Background", bg_sub_options{}},
             //lund_option{"Background, SD (mine, all)", bg_sub_options{.groom_options = {"SD_mine_all"}}},
             //lund_option{"Constituent subtraction", bg_sub_options{.event_sub = "ConSub"}},
-            lund_option{"Constituent subtraction, SD (mine, all)", bg_sub_options{.event_sub = "ConSub", .groom_options = {"SD_mine_all"}}},
+            //lund_option{"Constituent subtraction, SD (mine, all)", bg_sub_options{.event_sub = "ConSub", .groom_options = {"SD_mine_all"}}},
             //lund_option{"Perpendicular Cone (geometric)", bg_sub_options{.jet_sub = "MyPCGM"}},
             //lund_option{"Perpendicular Cone (geometric), SD (mine, all)", bg_sub_options{.jet_sub = "MyPCGM", .groom_options = {"SD_mine_all"}}}
             /*
