@@ -16,57 +16,10 @@
 
 #include "algorithm"
 
+#include "simpleTools.h"
+
 using namespace Pythia8;
 
-
-// ================================================================
-// Tools
-double median(vector<double> v) {
-    sort(v.begin(), v.end());
-    if (v.size()%2 == 1) {
-        return v[v.size()/2];
-    }
-    else {
-        return .5 * (v[v.size()/2] + v[(v.size()/2)-1]);
-    }
-}
-
-bool contains_TString(vector<TString> vec, TString x) {
-    return (std::find(vec.begin(), vec.end(), x) != vec.end());
-}
-
-// return a TString representation of a double, rounded to nearest .1
-TString to_string_round(double num) {
-    if (num < 1) {
-        return "." + to_string((int)(10*num));
-    }
-    else {
-        return to_string((int)num) + "." + to_string((int)(10*fmod(num, 1.0)));
-    }
-}
-
-void print_bin (std::vector<int> bin) {
-    cout << "pt of " << bin[0] << " to " << bin[1] << ", " << bin[2] << " events." << endl;
-}
-
-void print_bins (std::vector<vector<int>> bins) {
-    for (int iBin = 0; iBin < bins.size(); iBin++) {
-        cout << "Bin " << iBin << ": ";
-        print_bin(bins[iBin]);
-    }
-}
-
-void print_bins2code (std::vector<vector<int>> bins) {
-    cout << "vector<vector<int>> bins = {" << endl;
-    for (int iBin = 0; iBin < bins.size(); iBin++) {
-        cout << "{" << bins[iBin][0] << ", " << bins[iBin][1] << ", " << bins[iBin][2] << (iBin == bins.size()-1? "}" : "},") << endl;
-    }
-    cout << "};" << endl;
-
-}
-
-
-TString bool2Str(bool b) {return b? "True" : "False";}
 
 //====================================================================
 // Background subtraction objects and methods
@@ -135,7 +88,7 @@ vector<fastjet::PseudoJet> recursive_soft_drop_constit(const fastjet::PseudoJet&
 
 
 class RhoEstimator {
-public:
+    public:
 
     fastjet::JetDefinition jet_def;
     fastjet::AreaDefinition area_def;
@@ -181,15 +134,17 @@ public:
 // Try to use perpendicular cone to measure multiplicities of particles with certain pt, then match those particles by pt to constituents of the real jet
 class my_pc_subtractor {
   
-public:
+    public:
 
     // constructor - Rparam so pc radius matches jet radius.
-    my_pc_subtractor(double Rparam_in, fastjet::JetAlgorithm algo = fastjet::cambridge_algorithm):
+    my_pc_subtractor(double Rparam_in, double part_eta_max_in, fastjet::JetAlgorithm algo = fastjet::cambridge_algorithm):
     r_selector(fastjet::SelectorCircle(Rparam_in)),
-    jet_recluster_def(algo, Rparam_in + .3, fastjet::E_scheme, fastjet::Best)
+    jet_recluster_def(algo, Rparam_in + .3, fastjet::E_scheme, fastjet::Best),
+    area_def(fastjet::active_area, fastjet::GhostedAreaSpec(part_eta_max))
     {
         max_pt_diff = 100; // We're not using this currently
         Rparam = Rparam_in;
+        part_eta_max = part_eta_max_in;
         //r_recluster = r_recluster_in;
     }
 
@@ -197,7 +152,10 @@ public:
     fastjet::JetDefinition jet_recluster_def;
     double max_pt_diff;
     double Rparam;
+    double part_eta_max;
     //double r_recluster;
+
+    fastjet::AreaDefinition area_def;
 
 
     // Takes in a jet to apply perpendicular cone subtraction to, and all particles in the event
@@ -270,6 +228,10 @@ public:
     // Takes in a jet to apply perpendicular cone subtraction to, and all particles in the event
     // Returns that jet's constituents (vector<PseudoJet>) after applying perpendicular cone subtraction.
     vector<fastjet::PseudoJet> geometric_subtract_constit(const fastjet::PseudoJet& jet, vector<fastjet::PseudoJet> particles) {        
+
+        fastjet::ClusterSequenceArea csa(jet.constituents(), jet_recluster_def, area_def);
+        if (csa.inclusive_jets().size() != 1) cout << "NOTE: A jet reclustered with ghosts to get area in geometric_subtract_constit reclustered into " csa.inclusive_jets().size() << " jets." << endl;
+        double jet_area = sorted_by_pt(csa.inclusvie_jets())[0];
 
         fastjet::PseudoJet pc_axis;
 
@@ -390,7 +352,7 @@ struct lund_kin_vars {
 // https://hal.science/hal-01851158/document
 class LundGroomer {
 
-public:
+    public:
     
     // General
     double ptMin;
@@ -457,7 +419,7 @@ public:
         fastjet::E_scheme, 
         fastjet::Best),
     rho_estimator(Rparam_in, jet_eta_max_in, part_eta_max_in),
-    pc_subtractor(Rparam_in),
+    pc_subtractor(Rparam_in, part_eta_max_in),
     pruner(
         fastjet::cambridge_algorithm, 
         prune_zcut, 
