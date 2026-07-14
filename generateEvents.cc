@@ -127,7 +127,7 @@ vector<vector<int>> bins_from_density(int tot_num_events, int bin_width, double 
 int main() {
     
     // Create a ROOT output file
-    TString filename = "event_1mila.root";
+    TString filename = "event_smallTest.root";
     TFile file(filename, "RECREATE");
 
     // number of events per bin
@@ -138,8 +138,26 @@ int main() {
     // Give bounds for each bin
     
     // using make_bins
-    std::vector<vector<int>> pt_hat_bins = bins_from_density(500000, 5, 10, 250); // total desired events, bin width, pt hat min, pt hat max
-    print_bins(pt_hat_bins);
+    //std::vector<vector<int>> pt_hat_bins = bins_from_density(500000, 5, 10, 250); // total desired events, bin width, pt hat min, pt hat max
+    //print_bins(pt_hat_bins);
+
+    // for small test, for making sure storeLund and lundFromFile are working
+    std::vector<vector<int>> pt_hat_bins = {
+        {20, 70, 100},
+        {70, 120, 100}
+    };
+
+    /*
+    // Adding more statistic in jet pt > 70 range, for "event_moreHighPtJets.root"
+    std::vector<vector<int>> pt_hat_bins = {
+        {50, 70, 500000},
+        {70, 90, 500000},
+        {90, 110, 500000},
+        {110, 130, 400000},
+        {130, 150, 300000},
+        {150, 250, 200000}
+    };
+    */
 
     // Scaled3 Lite
     /*
