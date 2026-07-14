@@ -40,7 +40,7 @@ int main() {
     
     //TString output_file_name = "9k, groomed";
     TString output_folder = "LundPlanes";
-    TString subfolder = "Scaled3 lite, groomed";
+    TString subfolder = "2.3mil";
 
     cout << "Make sure you have created the needed subfolder!" << endl;
 
@@ -74,7 +74,7 @@ int main() {
         };
 
 
-    TString eventFileName = "event_scaled3Lite.root";
+    TString eventFileName = "event_2.3mil.root";
     TString backgroundFileName = "backgrounds50k.root";
     //"thermalBackgrounds9000,etaMax=2.root";
 
@@ -190,7 +190,7 @@ int main() {
 
     
     int numBackgrounds = mbt.GetEntries();
-    if (numBackgrounds < numEvents) {
+    if ((numBackgrounds < numEvents) && (bg_lund_options.size() != 0)) {
         cout << "Warning: There are " << numEvents << " provided events but only" << numBackgrounds << " provided backgrounds." << endl;
         cout << "Lund plane creation will stop once backgrounds run out" << endl;
         numEvents = numBackgrounds;
