@@ -189,13 +189,18 @@ int main() {
     //std::cout << "Number of events: " << numEvents << std::endl;
 
     
-    int numBackgrounds = mbt.GetEntries();
-    if ((numBackgrounds < numEvents) && (bg_lund_options.size() != 0)) {
-        cout << "Warning: There are " << numEvents << " provided events but only" << numBackgrounds << " provided backgrounds." << endl;
-        cout << "Lund plane creation will stop once backgrounds run out" << endl;
-        numEvents = numBackgrounds;
+    int numBackgrounds;
+    if (bg_lund_options.size() != 0) {
+        numBackgrounds = mbt.GetEntries();
+        if (numBackgrounds < numEvents) {
+            cout << "Warning: There are " << numEvents << " provided events but only" << numBackgrounds << " provided backgrounds." << endl;
+            cout << "Lund plane creation will stop once backgrounds run out" << endl;
+            numEvents = numBackgrounds;
+        }
+    
     }
     
+        
 
     int counter = 1000;
 
@@ -233,20 +238,22 @@ int main() {
         
 
         // Embedding in the background
-        vector<fastjet::PseudoJet> background_prtcls = mbt.get_particles(iEvent, part_pt_min);
-        move(background_prtcls.begin(), background_prtcls.end(), back_inserter(event_particles));
+        if (bg_lund_options.size() != 0) {
+            vector<fastjet::PseudoJet> background_prtcls = mbt.get_particles(iEvent, part_pt_min);
+            move(background_prtcls.begin(), background_prtcls.end(), back_inserter(event_particles));
 
-        if (debug) cout << "Looping through background_lund_options" << endl;
-        for (int iOption = 0; iOption < bg_lund_options.size(); ++iOption) {
-            if (debug) cout << "iOption " << iOption << endl;
-            bg_lund_options[iOption].sub_options.bin_weight = met.bin_weight;
-            //bg_lund_options[iOption].sub_options.jet_pt_hist
-            vector<lund_kin_vars> all_kin_vars = lund_groomer.get_kin_vars(event_particles, bg_lund_options[iOption].sub_options);
-            for (lund_kin_vars vars : all_kin_vars) {
-                double logR0_R = log(Rparam/vars.delta);
-                double logkt = log(vars.kt);
-                bg_lund_cuts[iOption][0]->Fill(logR0_R,logkt, met.bin_weight); // The inclusive pt lund
-                bg_lund_cuts[iOption][vars.num_cut + 1]->Fill(logR0_R,logkt, met.bin_weight); // the jet pt cut lund (which is at iCut + 1 in pythia_lund_cuts);
+            if (debug) cout << "Looping through background_lund_options" << endl;
+            for (int iOption = 0; iOption < bg_lund_options.size(); ++iOption) {
+                if (debug) cout << "iOption " << iOption << endl;
+                bg_lund_options[iOption].sub_options.bin_weight = met.bin_weight;
+                //bg_lund_options[iOption].sub_options.jet_pt_hist
+                vector<lund_kin_vars> all_kin_vars = lund_groomer.get_kin_vars(event_particles, bg_lund_options[iOption].sub_options);
+                for (lund_kin_vars vars : all_kin_vars) {
+                    double logR0_R = log(Rparam/vars.delta);
+                    double logkt = log(vars.kt);
+                    bg_lund_cuts[iOption][0]->Fill(logR0_R,logkt, met.bin_weight); // The inclusive pt lund
+                    bg_lund_cuts[iOption][vars.num_cut + 1]->Fill(logR0_R,logkt, met.bin_weight); // the jet pt cut lund (which is at iCut + 1 in pythia_lund_cuts);
+                }
             }
         }
 

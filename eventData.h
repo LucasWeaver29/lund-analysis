@@ -69,7 +69,7 @@ public:
         // Get pT Hat Bins TTree
         bins_tree = (TTree*)event_file.Get("ptHatBins");
         if (!bins_tree) {
-            std::cout << "Error: Could not find 'ptHatBins' tree in ROOT file" << std::endl;
+            std::cout << "ERROR: Could not find 'ptHatBins' tree in ROOT file" << std::endl;
         }
         bins_tree->SetBranchAddress("pt_hat_bin", &pt_hat_bin);
 
