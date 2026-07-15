@@ -156,8 +156,6 @@ class LundGroomer {
 
         
         
-
-        
         fastjet::ClusterSequence clust_seq(particles, jetDef_akt);
         vector<fastjet::PseudoJet> jets = sorted_by_pt(jet_eta_selector(clust_seq.inclusive_jets()));
 
@@ -231,6 +229,7 @@ class LundGroomer {
 
             fastjet::PseudoJet parent1, parent2;
             bool first = true;
+            double jet_pt = jet.pt();
             // For each jet, iteratively compare branchings
             while (jet.has_parents(parent1, parent2)) { 
                 if (debug) cout << "New declustering branch" << endl;
@@ -239,8 +238,6 @@ class LundGroomer {
                 fastjet::PseudoJet harder  = (parent1.pt() > parent2.pt()) ? parent1 : parent2;
                 fastjet::PseudoJet softer  = (parent1.pt() > parent2.pt()) ? parent2 : parent1;
                 
-                //if (harder.pt() > 100) break; // Event 3992 in Events9x1000 seems to be the problem
-
                 double delta = harder.delta_R(softer);
                 double kt = sin(delta) * softer.pt();
                 
@@ -263,7 +260,7 @@ class LundGroomer {
                     }
                 }
 
-                lund_kin_vars vars = {.delta = delta, .kt = kt, .jet_pt = jet.pt()};
+                lund_kin_vars vars = {.delta = delta, .kt = kt, .jet_pt = jet_pt};
 
                 all_kinematic_vars.push_back(vars);
 

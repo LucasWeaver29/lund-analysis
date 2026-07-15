@@ -25,6 +25,7 @@
 
 #include "eventData.h"
 #include "backSubTools.h"
+#include "groomedLund.h"
 
 using namespace Pythia8;
 
@@ -50,7 +51,7 @@ int main() {
     
     vector<lund_option> pythia_lund_options = 
         {
-            lund_option{.name = "Pythia", .sub_options = bg_sub_options{}},
+            lund_option{.name = "Pythia, 500k from groomedLund", .sub_options = bg_sub_options{}},
             //lund_option{"Pythia, SD (Contrib's, first)", bg_sub_options{.groom_options = {"SD_contrib_first"}}},
             //lund_option{"Pythia, SD (mine, first)", bg_sub_options{.groom_options = {"SD_mine_first"}}},
             //lund_option{"Pythia, SD (mine, all)", bg_sub_options{.groom_options = {"SD_mine_all"}}},
@@ -74,7 +75,7 @@ int main() {
         };
 
 
-    TString eventFileName = "event_2.3mil.root";
+    TString eventFileName = "event_500k.root";
     TString backgroundFileName = "backgrounds50k.root";
     //"thermalBackgrounds9000,etaMax=2.root";
 

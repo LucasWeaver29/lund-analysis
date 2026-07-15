@@ -1,15 +1,14 @@
-#include "pythia8/Pythia.h"
-#include "fastjet/PseudoJet.hh"
-#include "fastjet/ClusterSequence.hh"
+//#include "fastjet/PseudoJet.hh"
+//#include "fastjet/ClusterSequence.hh"
 
 #include <iostream>
 #include <random>
 
 // ROOT - histogram
-#include "TH1.h"
+//#include "TH1.h"
 #include "TH1F.h"
 #include "TCanvas.h"
-#include "TLegend.h"
+//#include "TLegend.h"
 
 // ROOT - function
 #include "TF1.h"
@@ -17,11 +16,11 @@
 // ROOT - saving as files
 #include <TFile.h>
 #include <TTree.h>
-#include <TBranch.h>
+//#include <TBranch.h>
 
 #include "cmath"
 
-using namespace Pythia8;
+using namespace std;
 
 
 // Generating the thermal background laid out in 
@@ -40,13 +39,13 @@ double flow_coeff(double pT = .5) {
 int main() {
 
 
-    int numBackgrounds = 50000;
+    int numBackgrounds = 2700000;
 
     // For checking specs after generation
-    TString output_name = "Background Specs - 50k";
+    TString output_name = "Background Specs - 2.7m";
 
     // Create a ROOT output file
-    TFile file("backgrounds50k.root", "RECREATE");
+    TFile file("backgrounds2.7m.root", "RECREATE");
     
     // Lily restricts backgrounds to |eta| < .9. To generate a background covering a wider eta range, I use this multiplier for both eta range and particle multiplicity
     double eta_max = .9;
@@ -110,9 +109,6 @@ int main() {
     pt_PDF->SetParameter(0, 10);
     pt_PDF->SetParName(1,"T");
     pt_PDF->SetParameter(1, .2);
-
-    // Create a vector to store all new particles
-    vector<fastjet::PseudoJet> background_prtcls;
 
     // number of thermal particles
     // "Chosen to match multiplicities for 0-5% most central Alic Pb-Pb collisions"

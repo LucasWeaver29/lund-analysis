@@ -18,7 +18,7 @@
 
 #include "simpleTools.h"
 
-using namespace Pythia8;
+using namespace std;
 
 
 //====================================================================

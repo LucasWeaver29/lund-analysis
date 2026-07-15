@@ -1,6 +1,9 @@
 #ifndef SIMPLETOOLS_H
 #define SIMPLETOOLS_H
 
+#include <cmath>
+
+
 using namespace std;
 
 double median(vector<double> v) {
