@@ -26,6 +26,10 @@ double bin_function(double x) {
 }
 */
 
+struct pt_hat_bin {
+    int pt_hat_min, pt_hat_max, numEvents;
+};
+
 // Bins according to bin function
 vector<vector<int>> make_bins(int n_bins, int bin_pt_min, int bin_pt_max) {
 
@@ -127,7 +131,7 @@ vector<vector<int>> bins_from_density(int tot_num_events, int bin_width, double 
 int main() {
     
     // Create a ROOT output file
-    TString filename = "event_smallTest.root";
+    TString filename = "event_Zoltans.root";
     TFile file(filename, "RECREATE");
 
     // number of events per bin
@@ -138,14 +142,29 @@ int main() {
     // Give bounds for each bin
     
     // using make_bins
-    //std::vector<vector<int>> pt_hat_bins = bins_from_density(500000, 5, 10, 250); // total desired events, bin width, pt hat min, pt hat max
+    //std::vector<vector<int>> pt_hat_bins = bins_from_density(500000, 10, 20, 250); // total desired events, bin width, pt hat min, pt hat max
     //print_bins(pt_hat_bins);
 
+
+    // Zoltan's binning
+    std::vector<pt_hat_bin> pt_hat_bins = {
+            {20, 30, 1000000},
+            {30, 50, 800000},
+            {50, 70, 400000},
+            {70, 100, 200000},
+            {100, 130, 100000},
+            {130, 180, 100000},
+            {180, 250, 100000}
+        };
+
+
     // for small test, for making sure storeLund and lundFromFile are working
+    /*
     std::vector<vector<int>> pt_hat_bins = {
         {20, 70, 100},
         {70, 120, 100}
     };
+    */
 
     /*
     // Adding more statistic in jet pt > 70 range, for "event_moreHighPtJets.root"
@@ -276,9 +295,9 @@ int main() {
     // Bin loop
     for (int iBin = 0; iBin < pt_hat_bins.size(); ++iBin) {
 
-        ptHatMin = pt_hat_bins[iBin][0];
-        ptHatMax = pt_hat_bins[iBin][1];
-        int nEvents = pt_hat_bins[iBin][2];
+        ptHatMin = pt_hat_bins[iBin].pt_hat_min;
+        ptHatMax = pt_hat_bins[iBin].pt_hat_max;
+        int nEvents = pt_hat_bins[iBin].numEvents;
         tot_events++;
 
         pythia.settings.readString("PhaseSpace:pTHatMin = " + to_string(ptHatMin));

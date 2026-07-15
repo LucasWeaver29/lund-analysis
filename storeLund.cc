@@ -1,32 +1,21 @@
-#include "pythia8/Pythia.h"
 #include "fastjet/PseudoJet.hh"
 #include "fastjet/ClusterSequence.hh"
 #include "fastjet/ClusterSequenceArea.hh"
 
 
 // ROOT - files
-//#include <TFile.h>
-//#include <TTree.h>
-//#include <TBranch.h>
-
 #include <vector>
 #include <iostream>
-#include <filesystem>
 
-// ROOT - histogram
-#include "TH1.h"
+// ROOT - histogram 
 #include "TH1F.h"
-#include "TH2.h"
-#include "TH2F.h"
-#include "TH3.h"
-#include "TH3F.h"
 #include "TCanvas.h"
 #include "TLatex.h"
 
 #include "eventData.h"
 #include "storeLund.h"
 
-using namespace Pythia8;
+using namespace std;
 
 
 int main() {
@@ -40,11 +29,11 @@ int main() {
     //"z_cut = .2, beta = 3";
 
     
-    lund_sub_options lund_ops = lund_sub_options{.name = "Pythia, 2.3mil"};
+    lund_sub_options lund_ops = lund_sub_options{.name = "Pythia, SD (mine, all), from event_Zoltans", .groom_option = "SD_mine_all"};
         
     bool embed_in_bg = false;
 
-    TString eventFileName = "event_smallTest.root";
+    TString eventFileName = "event_Zoltans.root";
     TString backgroundFileName = "backgrounds50k.root";
     //"thermalBackgrounds9000,etaMax=2.root";
 
@@ -91,7 +80,7 @@ int main() {
 
 
     // Set up fastjet analysis
-    LundGroomer lund_groomer(0, 400, leading_jet_only, Rparam, jet_eta_max, part_eta_max);
+    LundGroomer lund_groomer(0, 400, leading_jet_only, Rparam, jet_eta_max, part_eta_max); // 0, 400 for no jet pt cut
     
     // =======================================================================
 
@@ -126,7 +115,7 @@ int main() {
         }
 
         if (debug) cout << "Calling met.get_particles" << endl;
-        vector<fastjet::PseudoJet> event_particles = met.get_particles(iEvent, part_eta_max, part_pt_min); // iEvent, part_eta_max
+        vector<fastjet::PseudoJet> event_particles = met.get_particles(iEvent, part_eta_max, part_pt_min); // get_particles also calls getEntry(iEvent)
         
         if (embed_in_bg) {
             vector<fastjet::PseudoJet> background_prtcls = mbt.get_particles(iEvent, part_pt_min);
@@ -150,7 +139,6 @@ int main() {
 
         }
         
-
     }  // End reading events from ROOT
     
 
