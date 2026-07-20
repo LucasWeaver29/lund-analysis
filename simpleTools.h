@@ -6,6 +6,15 @@
 
 using namespace std;
 
+TString print_vec(vector<TString> vec) {
+    TString out = "";
+    for (int i = 0; i < vec.size(); i++) {
+        if (i == vec.size()-1) out += vec[i] + ".";
+        else out += vec[i] + ", ";
+    }
+    return out;
+}
+
 double median(vector<double> v) {
     sort(v.begin(), v.end());
     if (v.size()%2 == 1) {

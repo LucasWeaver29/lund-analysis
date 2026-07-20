@@ -29,12 +29,18 @@ int main() {
     //"z_cut = .2, beta = 3";
 
     
-    lund_sub_options lund_ops = lund_sub_options{.name = "Pythia, SD (mine, all), from event_Zoltans", .groom_option = "SD_mine_all"};
+    lund_sub_options lund_ops = lund_sub_options{.name = "Embedded, SD (mine, all), from event_Zoltans", .groom_option = "SD_mine_all"};
         
-    bool embed_in_bg = false;
+    bool embed_in_bg = true;
 
     TString eventFileName = "event_Zoltans.root";
-    TString backgroundFileName = "backgrounds50k.root";
+    vector<TString> backgroundFileNames = {
+        "backgrounds2.7m.root", 
+        "backgrounds2.7m_1.root",
+        "backgrounds2.7m_2.root",
+        "backgrounds2.7m_3.root",
+        "backgrounds2.7m_4.root",
+    };
     //"thermalBackgrounds9000,etaMax=2.root";
 
     double part_eta_max = .9;
@@ -51,8 +57,10 @@ int main() {
 
     //==================================================================
     // Preparing to read from ROOT files
+    if (debug) cout << "Creating my_event_tree" << endl;
     my_event_tree met(eventFileName);
-    my_background_tree mbt(backgroundFileName);
+    if (debug) cout << "Creating my_background_trees" << endl;
+    my_background_trees mbt(backgroundFileNames);
     // Checking if output subfolder exists
     //std::filesystem::path current_path = std::filesystem::current_path();
     //std::filesystem::path full_path = current_path / output_folder / subfolder
@@ -92,6 +100,7 @@ int main() {
     int numBackgrounds;
     if (embed_in_bg) {
         numBackgrounds = mbt.GetEntries();
+        cout << "There are " << numBackgrounds << " available backgrounds" << endl;
         if (numBackgrounds < numEvents) {
             cout << "Warning: There are " << numEvents << " provided events but only" << numBackgrounds << " provided backgrounds." << endl;
             cout << "Lund plane creation will stop once backgrounds run out" << endl;
@@ -167,7 +176,7 @@ int main() {
     TString title = "Lund plane points: " + lund_ops.name;
     TString line1 = "Number of events: " + to_string(numEvents);
     TString line2 = "Events from: " + eventFileName;
-    TString line3 = "Backgrounds from: " + backgroundFileName;
+    TString line3 = embed_in_bg? "Backgrounds from: " + print_vec(backgroundFileNames) : "No background.";
     TString line4 = "Leading Jet Only: " + bool2Str(leading_jet_only);
 
     TString line5 = "Jet radius: " + to_string_round(Rparam);
