@@ -28,9 +28,11 @@ struct lund_planes {
 int main() {
 
     //vector<TString> lund_file_names = {"Pythia Lund, 2.3mil.root"};
-    vector<TString> input_files = {"Pythia, SD (mine, all), from event_Zoltans"}; // dont' include ".root", that's done automatically
+    vector<TString> input_files = {"Embedded, SD (mine, all), from event_Zoltans"}; // dont' include ".root", that's done automatically
+    //"Pythia, SD (mine, all), from event_Zoltans"
+    //TString input_files_folder = "LundPlanes/event_Zoltans/rootFiles/";
 
-    TString output_folder = "LundPlanes/2.3mil";
+    TString output_folder = "LundPlanes/event_Zoltans";
 
     bool debug = false;
 
@@ -126,7 +128,7 @@ int main() {
         // Get the weighted jet pt histogram from the file's jet_pt_Tree
         TTree* jet_pt_tree = (TTree*)file.Get("jet_pt_tree");
         if (!jet_pt_tree) {
-            cout << "ERROR: Could not file jet pt tree in Root file " << input_file << endl;
+            cout << "ERROR: Could not find jet pt tree in Root file " << input_file << endl;
             return 1;
         }
 
@@ -223,6 +225,7 @@ int main() {
             c1->Clear();
         }
 
+        file.Close();
 
     }
 
@@ -320,12 +323,6 @@ int main() {
         }
 
     }
-
-
-        
-    
-
-
 
 
 

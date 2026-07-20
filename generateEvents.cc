@@ -1,10 +1,10 @@
 // Generates events and stores them in ROOT
 
-#include <Pythia8/Pythia.h>
-#include <TFile.h>
-#include <TTree.h>
-#include <TBranch.h>
-#include <vector>
+#include "Pythia8/Pythia.h"
+#include "TFile.h"
+#include "TTree.h"
+#include "TBranch.h"
+#include "vector"
 
 #include "TGraph.h"
 #include "TCanvas.h"
@@ -25,10 +25,11 @@ double bin_function(double x) {
     return 7 * pow(10,9) * pow(x, -3.57) + 6000;
 }
 */
-
+/*
 struct pt_hat_bin {
     int pt_hat_min, pt_hat_max, numEvents;
 };
+*/
 
 // Bins according to bin function
 vector<vector<int>> make_bins(int n_bins, int bin_pt_min, int bin_pt_max) {
@@ -147,7 +148,7 @@ int main() {
 
 
     // Zoltan's binning
-    std::vector<pt_hat_bin> pt_hat_bins = {
+    std::vector<vector<int>> pt_hat_bins = {
             {20, 30, 1000000},
             {30, 50, 800000},
             {50, 70, 400000},
@@ -233,7 +234,6 @@ int main() {
     //vector<double> ptHatMins = {10, 50, 70, 90, 110, 130, 150};
     //vector<double> ptHatMaxs = {50, 70, 90, 110, 130, 150, 250};
     
-    
 
 
     // Create a TTree
@@ -295,9 +295,9 @@ int main() {
     // Bin loop
     for (int iBin = 0; iBin < pt_hat_bins.size(); ++iBin) {
 
-        ptHatMin = pt_hat_bins[iBin].pt_hat_min;
-        ptHatMax = pt_hat_bins[iBin].pt_hat_max;
-        int nEvents = pt_hat_bins[iBin].numEvents;
+        ptHatMin = pt_hat_bins[iBin][0];
+        ptHatMax = pt_hat_bins[iBin][1];
+        int nEvents = pt_hat_bins[iBin][2];
         tot_events++;
 
         pythia.settings.readString("PhaseSpace:pTHatMin = " + to_string(ptHatMin));
@@ -312,7 +312,6 @@ int main() {
         for (int iEvent = 0; iEvent < nEvents; ++iEvent) {
             
             if (!pythia.next()) continue; // Skip failed events
-
             
             // Fill event data
                     

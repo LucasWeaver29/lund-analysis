@@ -10,6 +10,7 @@ struct lund_sub_options {
     TString groom_option = "null";
     TH1F* weighted_jet_pt_hist = nullptr;
     double bin_weight;
+    bool embed_in_bg = false;
 };
 
 struct lund_kin_vars {

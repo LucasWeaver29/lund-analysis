@@ -57,8 +57,8 @@ int main() {
 
     // Create a TTree
     TTree tree("backgrounds", "Backgrounds Tree");
-
-
+    tree.SetMaxTreeSize(50000000000LL);  // 50 GB per file
+    
     // Define variables to store event data
     int numParticles;
     std::vector<double> pts;
@@ -74,7 +74,7 @@ int main() {
     //=================================================================
     // For checking specs after generation
     
-    TH1F* nPart_hist = new TH1F("nPart_hist", "# particles per event; # of charged particles; counts", 100, 3650 * multiplier, 4100 * multiplier);
+    TH1F* nPart_hist = new TH1F("nPart_hist", "# particles per event; # of charged particles; counts", 450, 3650 * multiplier, 4100 * multiplier);
     TH1F* pt_hist = new TH1F("pt_hist", "pT Spectrum; pt; counts", 100, 0, 5);
     TH1F* phi_hist = new TH1F("phi_hist", "Azimuthal angle of UE thermal particles (anisotropic flow = true); Azimuthal angle; counts", 100, 0, 2*M_PI);
     TH1F* eta_hist = new TH1F("eta_hist", "Pseudorapidity of UE thermal particles; Pseudorapidity; counts", 100, -5, 5);
@@ -109,11 +109,17 @@ int main() {
     pt_PDF->SetParameter(0, 10);
     pt_PDF->SetParName(1,"T");
     pt_PDF->SetParameter(1, .2);
+    pt_PDF->SetNpx(10000); 
 
-    // number of thermal particles
-    // "Chosen to match multiplicities for 0-5% most central Alic Pb-Pb collisions"
-    // N_ch ~ N(mu = 3922, sigma = 40)
-    //int N_ch = normal_dist(gen)*40 + 3922;
+
+
+    // To see the pdf
+    /*
+    c1->cd();
+    pt_PDF->Draw();
+    c1->Print("pt_PDF.pdf", "pdf");
+    c1->Clear();
+    */
     
     int counter = 1000;
     
@@ -132,7 +138,7 @@ int main() {
         // number of thermal particles per background
         // "Chosen to match multiplicities for 0-5% most central Alic Pb-Pb collisions"
         // N_ch ~ N(mu = 3922, sigma = 40)
-        numParticles = normal_dist(gen)*40 + 3922;
+        numParticles = static_cast<int>(std::round(normal_dist(gen)*40 + 3922));
         if (diff_eta) numParticles = numParticles * multiplier;
         nPart_hist->Fill(numParticles);
 
@@ -178,7 +184,6 @@ int main() {
     // Create a ROOT canvas
     TCanvas *c1 = new TCanvas("c1", "Canvas", 800, 600);
     
-    
     c1->cd();
     nPart_hist->Draw("HIST");
     c1->Print(output_name+".pdf(","pdf");
@@ -201,6 +206,7 @@ int main() {
     eta_hist->Draw("HIST");
     c1->Print(output_name+".pdf)", "pdf");
     c1->Clear();
+
 
     // Write the tree to the file
     // Once this is done the references in the histograms can't access their data
