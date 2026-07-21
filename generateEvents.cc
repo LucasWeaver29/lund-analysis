@@ -132,7 +132,7 @@ vector<vector<int>> bins_from_density(int tot_num_events, int bin_width, double 
 int main() {
     
     // Create a ROOT output file
-    TString filename = "event_Zoltans.root";
+    TString filename = "event_test.root";
     TFile file(filename, "RECREATE");
 
     // number of events per bin
@@ -146,8 +146,18 @@ int main() {
     //std::vector<vector<int>> pt_hat_bins = bins_from_density(500000, 10, 20, 250); // total desired events, bin width, pt hat min, pt hat max
     //print_bins(pt_hat_bins);
 
+    // For test
+    std::vector<vector<int>> pt_hat_bins = {
+        {20, 30, 10000},
+        {30, 50, 8000},
+        {50, 70, 4000},
+        {70, 100, 2000},
+        {100, 250, 4000},
+    };
+
 
     // Zoltan's binning
+    /*
     std::vector<vector<int>> pt_hat_bins = {
             {20, 30, 1000000},
             {30, 50, 800000},
@@ -157,7 +167,7 @@ int main() {
             {130, 180, 100000},
             {180, 250, 100000}
         };
-
+    */
 
     // for small test, for making sure storeLund and lundFromFile are working
     /*
