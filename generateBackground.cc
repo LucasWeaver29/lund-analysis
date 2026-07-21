@@ -40,7 +40,7 @@ int main() {
 
 
     //int numBackgrounds = 2700000;
-    int numBackgrounds = 14000;
+    int numBackgrounds = 14000; // for a small test
 
     // For checking specs after generation
     TString output_name = "Background Specs - 14kb";

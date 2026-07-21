@@ -30,10 +30,14 @@ int main() {
 
     //vector<TString> lund_file_names = {"Pythia Lund, 2.3mil.root"};
     vector<TString> input_files = {
+        "Pythia, SD (mine, all), from event_Zoltans",
+        "SoftKill, SD (mine, all), from event_Zoltans"
+        /*
         "Pythia, SD (mine, all), from event_test",
         "Embedded, SD (mine, all), from event_test",
         "ConSub, SD (mine, all), from event_test", 
         "My PC Geometric Sub, SD (mine, all), from event_test"
+        */
     }; 
     // dont' include ".root", that's done automatically
     //"Pythia, SD (mine, all), from event_Zoltans"
@@ -43,10 +47,10 @@ int main() {
     vector<TString> file_short_names = {};
     for (TString name : input_files) {
         TString short_name = name;
-        file_short_names.push_back(short_name.ReplaceAll("(mine, all), from event_test", ""));
+        file_short_names.push_back(short_name.ReplaceAll("(mine, all), from event_Zoltans", ""));
     }
 
-    TString output_folder = "LundPlanes/event_test";
+    TString output_folder = "LundPlanes";
 
     bool debug = false;
 
@@ -251,7 +255,7 @@ int main() {
     TH2F *reference_lund = (TH2F*)all_lunds[0][0]->Clone(); // Inclusive plane of first file is used as reference
     reference_lund->SetStats(false);
     reference_lund->SetTitle(";;");
-
+    
     TCanvas *c1 = new TCanvas("c1", "Canvas", 800, 600);
 
     // Adding a text information sheet with stats about this lund overlay
