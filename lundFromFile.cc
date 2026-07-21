@@ -6,6 +6,7 @@
 #include "TLatex.h"
 #include "TCanvas.h"
 #include "TLegend.h"
+#include "TLine.h"
 
 #include "iostream"
 
@@ -28,11 +29,28 @@ struct lund_planes {
 int main() {
 
     //vector<TString> lund_file_names = {"Pythia Lund, 2.3mil.root"};
-    vector<TString> input_files = {"Embedded, SD (mine, all), from event_Zoltans"}; // dont' include ".root", that's done automatically
+    vector<TString> input_files = {
+        "Pythia, SD (mine, all), from event_Zoltans",
+        "SoftKill, SD (mine, all), from event_Zoltans"
+        /*
+        "Pythia, SD (mine, all), from event_test",
+        "Embedded, SD (mine, all), from event_test",
+        "ConSub, SD (mine, all), from event_test", 
+        "My PC Geometric Sub, SD (mine, all), from event_test"
+        */
+    }; 
+    // dont' include ".root", that's done automatically
     //"Pythia, SD (mine, all), from event_Zoltans"
     //TString input_files_folder = "LundPlanes/event_Zoltans/rootFiles/";
+    // The inclusive lund plane of the first file will be used as the reference
 
-    TString output_folder = "LundPlanes/event_Zoltans";
+    vector<TString> file_short_names = {};
+    for (TString name : input_files) {
+        TString short_name = name;
+        file_short_names.push_back(short_name.ReplaceAll("(mine, all), from event_Zoltans", ""));
+    }
+
+    TString output_folder = "LundPlanes";
 
     bool debug = false;
 
@@ -49,9 +67,9 @@ int main() {
     };
 
     // cuts along log(kt) and log(R0/R)
-    vector<double> kt_cuts = {-2, -1, 0, 2, 2.5}; // Lines of ln(kt) = x along which to take cuts
-    vector<double> delta_cuts = {.25, .5, 1, 1.5};
-    int cut_width; // The number of adjecent, parallel rows or columns to include in a cut
+    vector<double> kt_cuts = {-2, -1, 0, 2}; // Lines of ln(kt) = x along which to take cuts
+    vector<double> delta_cuts = {.25, .5, 1, 1.5, 2};
+    int cut_width = 2; // The number of adjecent, parallel rows or columns to include in a cut
 
     
     // For labeling lund plane
@@ -234,6 +252,10 @@ int main() {
     // Do kt and R cuts to compare different lunds, save to lund overlay.pdf
     //=========================================================
     
+    TH2F *reference_lund = (TH2F*)all_lunds[0][0]->Clone(); // Inclusive plane of first file is used as reference
+    reference_lund->SetStats(false);
+    reference_lund->SetTitle(";;");
+    
     TCanvas *c1 = new TCanvas("c1", "Canvas", 800, 600);
 
     // Adding a text information sheet with stats about this lund overlay
@@ -267,9 +289,15 @@ int main() {
         for (int i_kt = 0; i_kt < kt_cuts.size(); i_kt++) { 
             if(debug) cout << "Beginning kt cut " << i_kt << endl;
 
-            TLegend *legend = new TLegend(0.7, 0.7, 0.9, 0.9);
+            TLegend *legend = new TLegend(.1,.7,.28,.9);
 
             c1->cd();
+
+            // To ensure no histogram is cut off
+            double display_yMax = 0;
+            //double display_yMin = 1000; // a big number so TMath::Min(GetMax(), display_yMin) logic works
+            TH1D* first_hist = nullptr; // The first hist drawn sets the display axes
+
 
             for (int iFile = 0; iFile < all_lunds.size(); iFile++) { // Iterate through the lunds from the different input files. These are the entries in the vector all_lunds
 
@@ -277,15 +305,39 @@ int main() {
 
                 if (debug) cout << "Projecting hist for kt_cut" << endl;
                 TH1D* kt_cut = all_lunds[iFile][i_pTCut]->ProjectionX("kt_cut" + iFile, cut_iBin - cut_width, cut_iBin + cut_width, "e"); // Include cut_width bins on either side of the exact ln(kt) value
-                legend->AddEntry(kt_cut, input_files[iFile], "l");
-                
+                kt_cut->Scale(1.0/(2*cut_width +1)); // to account for the multiple rows summed for each cut
+                display_yMax = max(display_yMax, kt_cut->GetMaximum());
+                //display_yMin = min(display_yMin, kt_cut->GetMinimum());
+
                 if (iFile==0) {
                     kt_cut->SetTitle(all_lunds[iFile][i_pTCut]->GetTitle() + space + ": ln(kt) =" + space + kt_cuts[i_kt] + "; ln(R0/R); weighted counts");
-                    kt_cut->Draw("HIST");
+                    first_hist = kt_cut;
+                    kt_cut->Draw("HIST" "PLC");
+                    kt_cut->SetStats(false); // no stat box
+
                 }
-                else kt_cut->Draw("HIST" "SAME");
+                else kt_cut->Draw("HIST" "SAME" "PLC");
             
+                legend->AddEntry(kt_cut, file_short_names[iFile], "l");
+
             }
+            
+            first_hist->GetYaxis()->SetRangeUser(0, display_yMax * 1.1);
+            c1->Update();
+
+            // Add the reference
+            TPad* pad = new TPad("pad", "pad", .8, .75, .95, .95);
+            pad->Draw();
+            pad->cd(); // Switch to smaller pad
+            TH2F* ref_copy = (TH2F*)reference_lund->Clone();
+            ref_copy->Draw("COLZ A25");
+
+            TLine* line = new TLine(lund_xMin, kt_cuts[i_kt], lund_xMax, kt_cuts[i_kt]);
+            line->SetLineColor(kRed);
+            line->SetLineWidth(2); 
+            line->Draw("SAME");
+            
+            c1->cd(); // switch back to main canvas
 
             legend->Draw();
             c1->Print(output_folder + "/" + "lund overlay.pdf", "pdf");
@@ -299,21 +351,48 @@ int main() {
             TLegend *legend = new TLegend(.1,.7,.28,.9);
 
             c1->cd();
+
+            double display_yMax = 0;
+            //double display_yMin = 1000; 
+            TH1D* first_hist = nullptr;
             
             for (int iFile = 0; iFile < all_lunds.size(); iFile++) { // Iterate through the lunds from the different input files. These are the entries in the vector all_lunds
 
                 int cut_iBin = all_lunds[iFile][i_pTCut]->GetXaxis()->FindBin(delta_cuts[iDelta]);
                 
                 TH1D* delta_cut = all_lunds[iFile][i_pTCut]->ProjectionY("detla_cut" + iFile, cut_iBin - cut_width, cut_iBin + cut_width, "e");
-                legend->AddEntry(delta_cut, input_files[iFile], "l");
+                delta_cut->Scale(1.0/(2*cut_width + 1));
+                display_yMax = max(display_yMax, delta_cut->GetMaximum());
+                //display_yMin = min(display_yMin, delta_cut->GetMinimum());
+
 
                 if (iFile == 0) {
                     delta_cut->SetTitle(all_lunds[iFile][i_pTCut]->GetTitle() + space + ": ln(R0/R) =" + space + delta_cuts[iDelta] + "; ln(kt); weighted, normalized counts");
-                    delta_cut->Draw("HIST");
+                    first_hist = delta_cut;
+                    delta_cut->Draw("HIST" "PLC");
+                    delta_cut->SetStats(false); // no stat box
                 }
-                else delta_cut->Draw("HIST" "SAME");
+                else delta_cut->Draw("HIST" "SAME" "PLC");
             
+                legend->AddEntry(delta_cut, file_short_names[iFile], "l");
             }
+            
+            first_hist->GetYaxis()->SetRangeUser(0, display_yMax * 1.05);
+            c1->Update();
+
+            // Add the reference
+            TPad* pad = new TPad("pad", "pad", .8, .75, .95, .95);
+            pad->Draw();
+            pad->cd(); // Switch to smaller pad
+            TH2F* ref_copy = (TH2F*)reference_lund->Clone();
+            ref_copy->Draw("COLZ A25");
+
+            TLine* line = new TLine(delta_cuts[iDelta], lund_yMin, delta_cuts[iDelta], lund_yMax);
+            line->SetLineColor(kRed);
+            line->SetLineWidth(2); // for dashed line
+            line->Draw("SAME");
+            
+            c1->cd(); // switch back to main canvas
 
             legend->Draw();
             if ((iDelta == delta_cuts.size() - 1) && (i_pTCut == all_lunds[0].size() - 1)) c1->Print(output_folder + "/" + "lund overlay.pdf)", "pdf");

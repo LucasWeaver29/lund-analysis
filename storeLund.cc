@@ -29,17 +29,18 @@ int main() {
     //"z_cut = .2, beta = 3";
 
     
-    lund_sub_options lund_ops = lund_sub_options{.name = "Embedded, SD (mine, all), from event_Zoltans", .groom_option = "SD_mine_all"};
+    lund_sub_options lund_ops = lund_sub_options{.name = "SoftKill, SD (mine, all), from event_Zoltans", .event_sub = "SoftKill", .groom_option = "SD_mine_all"};
         
     bool embed_in_bg = true;
 
     TString eventFileName = "event_Zoltans.root";
     vector<TString> backgroundFileNames = {
-        "backgrounds2.7m.root", 
-        "backgrounds2.7m_1.root",
-        "backgrounds2.7m_2.root",
-        "backgrounds2.7m_3.root",
-        "backgrounds2.7m_4.root",
+        "backgrounds2.7m.a.root", 
+        "backgrounds2.7m.b.root",
+        "backgrounds2.7m.c.root",
+        "backgrounds2.7m.d.root",
+        "backgrounds2.7m.e.root",
+        "backgrounds2.7m.f.root",
     };
     //"thermalBackgrounds9000,etaMax=2.root";
 
@@ -154,8 +155,9 @@ int main() {
     // =========================================================
     // Save these plots in a root file, so they can be modified/resized without having to run the whole thing again
     
-
+    output_file.cd(); // Must specify the output_file as the active ROOT file for ROOT to write to it
     lund_coords_tree->Write();
+
 
     TTree jet_pt_tree("jet_pt_tree", "Jet pT Tree");
     jet_pt_tree.Branch("jet_pt_hist", &weighted_jet_pt_hist);
