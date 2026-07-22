@@ -6,8 +6,8 @@
 #include "fastjet/ClusterSequenceArea.hh"
 #include "fastjet/Selector.hh"
 
-#include "fastjet/tools/Filter.hh"
-#include "fastjet/tools/Pruner.hh"
+//#include "fastjet/tools/Filter.hh"
+//#include "fastjet/tools/Pruner.hh"
 
 #include "fastjet/contrib/ConstituentSubtractor.hh" // jet by jet constituent-based subtraction
 #include "fastjet/contrib/SoftKiller.hh"
@@ -19,6 +19,17 @@
 #include "simpleTools.h"
 
 using namespace std;
+
+
+struct back_sub_options {
+    TString name;
+    TString event_sub = "null";
+    TString jet_sub = "null";
+    TString groom_option = "null";
+    TH1F* weighted_jet_pt_hist = nullptr;
+    double bin_weight;
+    bool embed_in_bg = false;
+};
 
 
 //====================================================================

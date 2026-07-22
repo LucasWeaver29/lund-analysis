@@ -29,18 +29,21 @@ int main() {
     //"z_cut = .2, beta = 3";
 
     
-    lund_sub_options lund_ops = lund_sub_options{.name = "SoftKill, SD (mine, all), from event_Zoltans", .event_sub = "SoftKill", .groom_option = "SD_mine_all"};
+    back_sub_options lund_ops = back_sub_options{.name = "Pythia, SD (mine, all), from event_test", .event_sub = "null", .groom_option = "SD_mine_all"};
         
-    bool embed_in_bg = true;
+    bool embed_in_bg = false;
 
-    TString eventFileName = "event_Zoltans.root";
+    TString eventFileName = "event_test.root";
     vector<TString> backgroundFileNames = {
+        "backgrounds28k.root"
+        /*
         "backgrounds2.7m.a.root", 
         "backgrounds2.7m.b.root",
         "backgrounds2.7m.c.root",
         "backgrounds2.7m.d.root",
         "backgrounds2.7m.e.root",
-        "backgrounds2.7m.f.root",
+        "backgrounds2.7m.f.root"
+        */
     };
     //"thermalBackgrounds9000,etaMax=2.root";
 
@@ -84,12 +87,12 @@ int main() {
     lund_coords_tree->Branch("iBin", &iBin, "iBin/I");
 
 
-    TH1F* weighted_jet_pt_hist = new TH1F("weighted_jet_pt_hist", "Weighted Jet p_{T}; jet p_{T}; Weighted counts", 300, 0, 300);
+    TH1F* weighted_jet_pt_hist = new TH1F("weighted_jet_pt_hist", "Weighted Jet p_{T}; jet p_{T}; Weighted counts", 400, 0, 200);
     lund_ops.weighted_jet_pt_hist = weighted_jet_pt_hist;
 
 
     // Set up fastjet analysis
-    LundGroomer lund_groomer(0, 400, leading_jet_only, Rparam, jet_eta_max, part_eta_max); // 0, 400 for no jet pt cut
+    LundGroomer lund_groomer(0, 300, leading_jet_only, Rparam, jet_eta_max, part_eta_max); // 0, 400 for no jet pt cut
     
     // =======================================================================
 
@@ -199,6 +202,5 @@ int main() {
 
     return 0;
 }
-
 
 

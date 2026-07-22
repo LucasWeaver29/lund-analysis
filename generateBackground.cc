@@ -40,13 +40,13 @@ int main() {
 
 
     //int numBackgrounds = 2700000;
-    int numBackgrounds = 14000; // for a small test
+    int numBackgrounds = 28000; // for a small test
 
     // For checking specs after generation
-    TString output_name = "Background Specs - 14kb";
+    TString output_name = "Background Specs - 28k";
 
     // Create a RSOOT output file
-    TFile file("backgrounds14kb.root", "RECREATE");
+    TFile file("backgrounds28k.root", "RECREATE");
     
     // Lily restricts backgrounds to |eta| < .9. To generate a background covering a wider eta range, I use this multiplier for both eta range and particle multiplicity
     double eta_max = .9;
