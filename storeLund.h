@@ -3,15 +3,6 @@
 
 #include "backSubTools.h"
 
-struct lund_sub_options {
-    TString name;
-    TString event_sub = "null";
-    TString jet_sub = "null";
-    TString groom_option = "null";
-    TH1F* weighted_jet_pt_hist = nullptr;
-    double bin_weight;
-    bool embed_in_bg = false;
-};
 
 struct lund_kin_vars {
     double delta, kt, jet_pt;
@@ -126,7 +117,7 @@ class LundGroomer {
     // Takes event particles, int to count number of jets, int to record iCut, bg_sub_options.
     // Finds jets with akt. Reclusters those jets using CA.
     // returns a vector of the delta of the kinematic variables of those jets' splittings for the lund plane.
-    vector<lund_kin_vars> get_kin_vars(vector<fastjet::PseudoJet> particles, lund_sub_options ops) {
+    vector<lund_kin_vars> get_kin_vars(vector<fastjet::PseudoJet> particles, back_sub_options ops) {
 
         vector<lund_kin_vars> all_kinematic_vars;
 
@@ -189,6 +180,10 @@ class LundGroomer {
                 fastjet::ClusterSequence reclusterSeq_temp(jet.constituents(), jetDef_ca_recluster);
                 fastjet::PseudoJet reclustered_jet = sorted_by_pt(reclusterSeq_temp.inclusive_jets())[0];
                 constituents = recursive_soft_drop_constit(reclustered_jet, Rparam);
+            }
+            else if ((ops.jet_sub != "Filter") && (ops.jet_sub != "Prune") && (ops.jet_sub != "RSD_contrib")) {
+                cout << "Warning: Unknown jet subtraction request. No subtraction will be performed" << endl;
+                constituents = jet.constituents();
             }
             else {
                 if (debug) cout << "Calling jet.constituents()" << endl;

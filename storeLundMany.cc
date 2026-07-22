@@ -28,12 +28,12 @@ int main() {
     //"z_cut = .2, beta = 3";
 
     
-    vector<lund_sub_options> all_lund_ops = {
-        lund_sub_options{.name = "Embedded, SD (mine, all), from event_Zoltans", .groom_option = "SD_mine_all", .embed_in_bg = true},
-        //lund_sub_options{.name = "Constituent Subtraction, SD (mine, all) from event_Zoltans", .event_sub = "ConSub", .groom_option = "SD_mine_all", .embed_in_bg = true},
-        //lund_sub_options{.name = "My PC Sub Geometric, SD (mine, all) from event_Zoltans", .jet_sub = "MyPCGM", .groom_option = "SD_mine_all", .embed_in_bg = true},
-        //lund_sub_options{.name = "SoftKiller, SD (mine, all) from event_Zoltans", .event_sub = "SoftKill", .groom_option = "SD_mine_all", .embed_in_bg = true},
-        //lund_sub_options{.name = "RSD (mine), SD (mine, all) from event_Zoltans", .jet_sub = "RSD_mine", .groom_option = "SD_mine_all", .embed_in_bg = true}
+    vector<back_sub_options> all_lund_ops = {
+        back_sub_options{.name = "Embedded, SD (mine, all), from event_Zoltans", .groom_option = "SD_mine_all", .embed_in_bg = true},
+        //back_sub_options{.name = "Constituent Subtraction, SD (mine, all) from event_Zoltans", .event_sub = "ConSub", .groom_option = "SD_mine_all", .embed_in_bg = true},
+        //back_sub_options{.name = "My PC Sub Geometric, SD (mine, all) from event_Zoltans", .jet_sub = "MyPCGM", .groom_option = "SD_mine_all", .embed_in_bg = true},
+        //back_sub_options{.name = "SoftKiller, SD (mine, all) from event_Zoltans", .event_sub = "SoftKill", .groom_option = "SD_mine_all", .embed_in_bg = true},
+        //back_sub_options{.name = "RSD (mine), SD (mine, all) from event_Zoltans", .jet_sub = "RSD_mine", .groom_option = "SD_mine_all", .embed_in_bg = true}
 
     };
         
@@ -61,7 +61,7 @@ int main() {
     TString space = " ";
 
     // Loop through all provided lund options
-    for (lund_sub_options lund_ops : all_lund_ops) {
+    for (back_sub_options lund_ops : all_lund_ops) {
         
         cout << "Beginning " << lund_ops.name << endl;
 
@@ -199,6 +199,5 @@ int main() {
 
     return 0;
 }
-
 
 

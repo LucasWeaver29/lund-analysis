@@ -16,6 +16,14 @@
 
 using namespace std;
 
+// A struct to hold all 
+/*
+struct lund_planes {
+    //TH2F* inclusive_lund = nullptr;
+    vector<TH2F*> lunds = {}; // Index 0 is the inclusive lund plane. The jet pt cuts start at index 1
+    //TH1F* weighted_jet_pt_hist = nullptr;
+}
+*/
 
 
 int main() {
@@ -37,7 +45,7 @@ int main() {
     // dont' include ".root", that's done automatically
     //"Pythia, SD (mine, all), from event_Zoltans"
     //TString input_files_folder = "LundPlanes/event_Zoltans/rootFiles/";
-    // The first lund plane cut of the first file will be used as the reference
+    // The inclusive lund plane of the first file will be used as the reference
 
     vector<TString> file_short_names = {};
     for (TString name : input_files) {
@@ -49,9 +57,11 @@ int main() {
 
     bool debug = false;
 
+    int jet_pt_min = 20;
+    int jet_pt_max = 120;
+
     // For jet pt cuts of the lund plane
     vector<vector<double>> jet_pt_cuts = {
-        {20, 120}, // first cuts is the inclusive plane
         {20, 40},
         {40, 60},
         {60, 80},
@@ -87,6 +97,24 @@ int main() {
     // Setting up files and TTrees
     
     vector<vector<TH2F*>> all_lunds;
+    /*
+    for (TString file_name : lund_file_names) {
+        
+        lund_planes lunds;
+        
+        lunds.inclusve_lund = new TH2F(file_name + "inclusive_lund", file_name + ": Inclusive Lund Plane;" + lund_xAxis + ";" + lund_yAxis, lund_nBinsX, lund_xMin, lund_xMax, lund_nBinsY, lund_yMin, lund_yMax);
+        
+        vector<TH2F*> jet_pt_cuts;
+        for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) {
+            jet_pt_cuts.push_back(new TH2F(file_name + "lund_cut" + iCut, file_name + ": " jet_pt_cuts[iCut][0] + "< Jet p_{T} < " + jet_pt_cuts[iCut][1] + ";" + lund_xAxis + ";" + lund_yAxis, lund_nBinsX, lund_xMin, lund_xMax, lund_nBinsY, lund_yMin, lund_yMax));
+        }
+        
+        lunds.jet_pt_cuts = jet_pt_cuts;
+        
+        all_lunds.push_back(lunds);
+    }
+    */
+
 
 
     for (int iFile = 0; iFile < input_files.size(); iFile++) {
@@ -141,7 +169,12 @@ int main() {
         if(debug) cout << "lund_coords_tree has " << lund_coords_tree->GetEntries() << " entries" << endl;
         int num_points = lund_coords_tree->GetEntries(); // Points to graph on the lund plane
 
-        
+        TH2F* l = new TH2F(input_file + "inclusive_lund", "Inclusive Lund Plane;" + lund_xAxis + ";" + lund_yAxis, lund_nBinsX, lund_xMin, lund_xMax, lund_nBinsY, lund_yMin, lund_yMax);
+        l->SetDirectory(0);
+        lunds.push_back(l);
+        // the inclusive lund plane goes in index 0 of jet_pt_cut_lunds
+
+
         if(debug) cout << "Adding TH2Fs to jet_pt_cuts" << endl;
         for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) {
             TH2F* l = new TH2F(input_file + "lund_cut" + iCut, jet_pt_cuts[iCut][0] + space + "< Jet p_{T} < " + jet_pt_cuts[iCut][1] + ";" + lund_xAxis + ";" + lund_yAxis, lund_nBinsX, lund_xMin, lund_xMax, lund_nBinsY, lund_yMin, lund_yMax);
@@ -149,31 +182,41 @@ int main() {
             lunds.push_back(l);
         }
 
-        if(debug) cout << "Adding points to lund planes" << endl;
         // Add the points in the lund_coords_tree to the lund planes
         for (int iPoint = 0; iPoint < num_points; iPoint++) {
 
             lund_coords_tree->GetEntry(iPoint);
 
+            if ((jet_pt < jet_pt_min) || (jet_pt > jet_pt_max)) continue;
+
+            lunds[0]->Fill(log_inv_R, log_kt, bin_weight); // Indlusive Lund plane
+
             // Find jet pt cut
-            for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) {
-                if (jet_pt > jet_pt_cuts[iCut][0] && jet_pt < jet_pt_cuts[iCut][1]) {
-                    lunds[iCut]->Fill(log_inv_R, log_kt, bin_weight); 
-                }
+            int iCut = 0;
+            for (iCut; iCut < jet_pt_cuts.size(); iCut++) {
+                if (jet_pt > jet_pt_cuts[iCut][0] && jet_pt < jet_pt_cuts[iCut][1]) break;
             }
 
+            lunds[iCut + 1]->Fill(log_inv_R, log_kt, bin_weight); // iCut + 1 because jet_pt_cuts are 1 indexed
 
         }
 
         //===========================================================
         // Normalize lund planes
-        if(debug) cout << "Normalizing lund planes" << endl;
-        for (int iLund = 0; iLund < lunds.size(); iLund++) { 
-            double nJets_weighted = 0;
-            for (int iBin = weighted_jet_pt_hist->FindBin(jet_pt_cuts[iLund][0]); iBin <= weighted_jet_pt_hist->FindBin(jet_pt_cuts[iLund][1]); iBin++) {
-                nJets_weighted += weighted_jet_pt_hist->GetBinContent(iBin);
+        // Inclusive plane:
+        double nJets_weighted_inclusive = 0;
+        for (int iBin = weighted_jet_pt_hist->FindBin(jet_pt_min); iBin <= weighted_jet_pt_hist->FindBin(jet_pt_max); iBin++) {
+            nJets_weighted_inclusive += weighted_jet_pt_hist->GetBinContent(iBin);
+        }
+        lunds[0]->Scale(1/(lund_area * nJets_weighted_inclusive)) // Scale inclusive lund
+        
+        // jet pt cuts:
+        for (int iLund = 1; iLund < lunds.size(); iLund++) { // iLund = 1 because index 0 is inclusive lund plane. This is why it's iLund-1 for the corresponding jet_pt_cuts
+            nJets_weighted_cut = 0;
+            for (int iBin = weighted_jet_pt_hist->FindBin(jet_pt_cuts[iLund-1][0]); iBin <= weighted_jet_pt_hist->FindBin(jet_pt_cuts[iLund-1][1]); iBin++) {
+                nJets_weighted_cut += weighted_jet_pt_hist->GetBinContent(iBin);
             }
-            lunds[iLund]->Scale(1/(lund_area * nJets_weighted));
+            lunds[iLund]->Scale(1/(lund_area * nJets_weighted_inclusive));
         }
         
         all_lunds.push_back(lunds);
@@ -187,10 +230,12 @@ int main() {
         // Adding a text information sheet with stats about this generation
         TString title = "Lund plane points from " + input_file;
         TString line1 = "Number of entries: " + to_string(num_points);
-        TString line2 = "See " + input_file + "-Data_card.pdf for more info";
+        TString line2 = "Jet p_{T} min = " + to_string(jet_pt_min);
+        TString line3 = "Jet p_{T} max = " + to_string(jet_pt_max);
+        TString line4 = "See " + input_file + "-Data_card.pdf for more info";
 
 
-        vector<TString> lines = {title, line1, line2};
+        vector<TString> lines = {title, line1, line2, line3, line4};
         c1->cd();
         for (int iLine = 0; iLine < lines.size(); ++iLine) {
             TLatex *text = new TLatex(.1, .8 - iLine * .05, lines[iLine]);
@@ -204,17 +249,11 @@ int main() {
         for (int iLund = 0; iLund < lunds.size(); iLund++) {
             c1->cd();
             lunds[iLund]->Draw("COLZ");
-            //(iLund == lunds.size() - 1) ? 
-                //c1->Print(output_folder + "/"  + input_file + ".pdf)","pdf") :
+            (iLund == lunds.size() - 1) ? 
+                c1->Print(output_folder + "/"  + input_file + ".pdf)","pdf") :
                 c1->Print(output_folder + "/"  + input_file + ".pdf","pdf");
             c1->Clear();
         }
-
-        c1->cd();
-        c1->SetLogy(1);
-        weighted_jet_pt_hist->Draw("HIST");
-        c1->Print(output_folder + "/"  + input_file + ".pdf)","pdf");
-        c1->Clear();
 
         file.Close();
 
@@ -225,7 +264,7 @@ int main() {
     // Do kt and R cuts to compare different lunds, save to lund overlay.pdf
     //=========================================================
     
-    TH2F *reference_lund = (TH2F*)all_lunds[0][0]->Clone(); // First cut of first file is used as reference
+    TH2F *reference_lund = (TH2F*)all_lunds[0][0]->Clone(); // Inclusive plane of first file is used as reference
     reference_lund->SetStats(false);
     reference_lund->SetTitle(";;");
     
@@ -302,9 +341,7 @@ int main() {
             TPad* pad = new TPad("pad", "pad", .8, .75, .95, .95);
             pad->Draw();
             pad->cd(); // Switch to smaller pad
-            TH2F* ref_copy = (TH2F*)all_lunds[0][i_pTCut]->Clone();
-            ref_copy->SetStats(false);
-            ref_copy->SetTitle(";;");
+            TH2F* ref_copy = (TH2F*)reference_lund->Clone();
             ref_copy->Draw("COLZ A25");
 
             TLine* line = new TLine(lund_xMin, kt_cuts[i_kt], lund_xMax, kt_cuts[i_kt]);
@@ -359,9 +396,7 @@ int main() {
             TPad* pad = new TPad("pad", "pad", .8, .75, .95, .95);
             pad->Draw();
             pad->cd(); // Switch to smaller pad
-            TH2F* ref_copy = (TH2F*)all_lunds[0][i_pTCut]->Clone();
-            ref_copy->SetStats(false);
-            ref_copy->SetTitle(";;");
+            TH2F* ref_copy = (TH2F*)reference_lund->Clone();
             ref_copy->Draw("COLZ A25");
 
             TLine* line = new TLine(delta_cuts[iDelta], lund_yMin, delta_cuts[iDelta], lund_yMax);
