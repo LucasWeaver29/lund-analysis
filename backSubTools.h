@@ -6,8 +6,8 @@
 #include "fastjet/ClusterSequenceArea.hh"
 #include "fastjet/Selector.hh"
 
-//#include "fastjet/tools/Filter.hh"
-//#include "fastjet/tools/Pruner.hh"
+#include "fastjet/tools/Filter.hh"
+#include "fastjet/tools/Pruner.hh"
 
 #include "fastjet/contrib/ConstituentSubtractor.hh" // jet by jet constituent-based subtraction
 #include "fastjet/contrib/SoftKiller.hh"

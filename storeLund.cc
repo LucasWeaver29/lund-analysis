@@ -24,26 +24,29 @@ int main() {
     //TString output_folder = "LundPlanes/LundRootFiles";
 
     cout << "Make sure you have created the needed subfolder!" << endl;
+    cout << "Note that storeLund.h is currently using cluster sequence area!" << endl;
 
     TString notes = "";
     //"z_cut = .2, beta = 3";
 
     
-    back_sub_options lund_ops = back_sub_options{.name = "Pythia, SD (mine, all), from event_test", .event_sub = "null", .groom_option = "SD_mine_all"};
+    back_sub_options lund_ops = back_sub_options{.name = "Embedded, pT Rho Sub, from event_Zoltans", .jet_sub = "pT_rho_sub"};
         
-    bool embed_in_bg = false;
+    bool embed_in_bg = true;
 
-    TString eventFileName = "event_test.root";
+    TString eventFileName = "event_Zoltans.root";
     vector<TString> backgroundFileNames = {
-        "backgrounds28k.root"
-        /*
+        //"backgrounds14ka.root",
+        //"backgrounds14kb.root"
+        
         "backgrounds2.7m.a.root", 
         "backgrounds2.7m.b.root",
         "backgrounds2.7m.c.root",
         "backgrounds2.7m.d.root",
         "backgrounds2.7m.e.root",
         "backgrounds2.7m.f.root"
-        */
+        
+        
     };
     //"thermalBackgrounds9000,etaMax=2.root";
 
@@ -202,5 +205,3 @@ int main() {
 
     return 0;
 }
-
-

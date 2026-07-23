@@ -34,8 +34,10 @@ class LundGroomer {
     fastjet::Selector jet_eta_selector;
 
     //int* iCut;
-
     RhoEstimator rho_estimator;
+
+    // For area based jet pT subtraction
+    fastjet::AreaDefinition area_def;
 
     // Recording cuts
     bool cuts = false;
@@ -58,6 +60,7 @@ class LundGroomer {
     double prune_zcut = .2;
     double Rcut_factor = .2;
     fastjet::Pruner pruner;
+
 
     // Jet by jet constituent subtraction
     fastjet::GridMedianBackgroundEstimator bge; // GridMedianBackgroundEstimator is faster than JetMedianBackgroundEstimator and "performs equally well in nearly all cases"
@@ -85,11 +88,9 @@ class LundGroomer {
         fastjet::E_scheme, 
         fastjet::Best),
     rho_estimator(Rparam_in, jet_eta_max_in, part_eta_max_in),
+    area_def(fastjet::active_area, fastjet::GhostedAreaSpec(part_eta_max_in)),
     pc_subtractor(Rparam_in, part_eta_max_in),
-    pruner(
-        fastjet::cambridge_algorithm, 
-        prune_zcut, 
-        Rcut_factor),
+    pruner(fastjet::cambridge_algorithm, prune_zcut, Rcut_factor),
     filter(Rfilt, fastjet::SelectorNHardest(nfilt)),
     bge(part_eta_max_in, .5), // particle eta max, grid spacing
     subtractor(&bge),
@@ -146,6 +147,8 @@ class LundGroomer {
         else if (ops.event_sub == "null") {;}
         else cout << "Warning: Unknown event subtraction request" << endl;
 
+        double rho;
+        if (ops.jet_sub == "pT_rho_sub") rho = rho_estimator.rho(particles);
         
         
         fastjet::ClusterSequence clust_seq(particles, jetDef_akt);
@@ -181,7 +184,7 @@ class LundGroomer {
                 fastjet::PseudoJet reclustered_jet = sorted_by_pt(reclusterSeq_temp.inclusive_jets())[0];
                 constituents = recursive_soft_drop_constit(reclustered_jet, Rparam);
             }
-            else if ((ops.jet_sub != "Filter") && (ops.jet_sub != "Prune") && (ops.jet_sub != "RSD_contrib")) {
+            else if ((ops.jet_sub != "pT_rho_sub") && (ops.jet_sub != "Filter") && (ops.jet_sub != "Prune") && (ops.jet_sub != "RSD_contrib")) {
                 cout << "Warning: Unknown jet subtraction request. No subtraction will be performed" << endl;
                 constituents = jet.constituents();
             }
@@ -195,8 +198,9 @@ class LundGroomer {
             }
 
             if (debug) cout << "reclusterSeq with new jet constituents" << endl;
-            fastjet::ClusterSequence reclusterSeq(constituents, jetDef_ca_recluster);
-            jet = sorted_by_pt(reclusterSeq.inclusive_jets())[0];
+            fastjet::ClusterSequenceArea reclusterSeq(constituents, jetDef_ca_recluster, area_def);
+            //fastjet::ClusterSequence reclusterSeq(constituents, jetDef_ca_recluster);
+            jet = fastjet::sorted_by_pt(reclusterSeq.inclusive_jets())[0];
             
             // Next, the things that work only on an already CA reclustered jet, and return a new jet
             if  (ops.jet_sub == "Filter") {
@@ -208,11 +212,17 @@ class LundGroomer {
             else if (ops.jet_sub == "RSD_contrib") {
                 jet = rsd(jet);
             }
+
+            double jet_pt;
+            if (ops.jet_sub == "pT_rho_sub") {
+                jet_pt = jet.pt() - rho*jet.area();
+            }
+            else jet_pt =  jet.pt();
             
 
             if (ops.weighted_jet_pt_hist != nullptr) {
                 if(debug) cout << "Filling weighted jet pt hist: Jet pt =  " << jet.pt() << ", bin weight = " << ops.bin_weight << endl;
-                ops.weighted_jet_pt_hist->Fill(jet.pt(), ops.bin_weight);
+                ops.weighted_jet_pt_hist->Fill(jet_pt, ops.bin_weight);
             }
 
             // jets already selected for eta by eta selector
@@ -225,7 +235,6 @@ class LundGroomer {
 
             fastjet::PseudoJet parent1, parent2;
             bool first = true;
-            double jet_pt = jet.pt();
             // For each jet, iteratively compare branchings
             while (jet.has_parents(parent1, parent2)) { 
                 if (debug) cout << "New declustering branch" << endl;
