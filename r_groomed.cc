@@ -360,7 +360,7 @@ int main() {
 
     bool leading_jet_only = false;
 
-    bool normalize = false; // normalize histograms
+    bool normalize = true; // normalize histograms
     
     TString space = " ";
     
@@ -588,7 +588,7 @@ int main() {
 
         for (int iOp = 0; iOp < all_sub_ops.size(); iOp++) {
 
-            //display_yMax = max(display_yMax, all_Rg_hists[iOp][iCut]->GetMaximum());
+            display_yMax = max(display_yMax, all_Rg_hists[iOp][iCut]->GetMaximum());
 
             if (iOp == 0) all_Rg_hists[iOp][iCut]->Draw("HIST PLC");
             else all_Rg_hists[iOp][iCut]->Draw("HIST PLC SAME");
@@ -596,9 +596,9 @@ int main() {
             legend->AddEntry(all_Rg_hists[iOp][iCut], all_sub_ops[iOp].name, "l");
         }
 
-        //all_Rg_hists[0][iCut]->SetStats(false); // no stat box
-        //all_Rg_hists[0][iCut]->GetYaxis()->SetRangeUser(0, display_yMax * 1.1);
-        //c1->Update();
+        all_Rg_hists[0][iCut]->SetStats(false); // no stat box
+        all_Rg_hists[0][iCut]->GetYaxis()->SetRangeUser(0, display_yMax * 1.1);
+        c1->Update();
 
         legend->Draw();
         //if (iCut == jet_pt_cuts.size() - 1) c1->Print(output_folder_name + output_file_name + ".pdf)", "pdf");
