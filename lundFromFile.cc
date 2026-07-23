@@ -22,12 +22,27 @@ int main() {
 
     //vector<TString> lund_file_names = {"Pythia Lund, 2.3mil.root"};
     vector<TString> input_files = {
+        // Not groomed
+        
+        "Embedded, from event_Zoltans",
+        "My PC, from event_Zoltans",
+        "Pythia, from event_Zoltans",
+        "RSD (mine), from event_Zoltans",
+        
+        
+        // GROOMED with SD (mine, all)
+        /*
         "Pythia, SD (mine, all), from event_Zoltans",
+        "RSD (mine), SD (mine, all), from event_Zoltans",
+        "Embedded, SD (mine, all), from event_Zoltans",
         "SoftKill, SD (mine, all), from event_Zoltans",
         "My PC, SD (mine, all), from event_Zoltans",
-        "Embedded, SD (mine, all), from event_Zoltans"
+        "ConSub, SD (mine, all), from event_Zoltans"
+        */
         
-        /*
+        
+
+        /* TEST
         "Pythia, SD (mine, all), from event_test",
         "Embedded, SD (mine, all), from event_test",
         "ConSub, SD (mine, all), from event_test", 
@@ -224,7 +239,9 @@ int main() {
     //=========================================================
     // Do kt and R cuts to compare different lunds, save to lund overlay.pdf
     //=========================================================
-    
+    TString overlay_output_name = "lund overlay, groomed";
+
+
     TH2F *reference_lund = (TH2F*)all_lunds[0][0]->Clone(); // First cut of first file is used as reference
     reference_lund->SetStats(false);
     reference_lund->SetTitle(";;");
@@ -249,10 +266,8 @@ int main() {
         text->Draw();
     }
     
-    c1->Print(output_folder + "/" + "lund overlay.pdf(","pdf");
+    c1->Print(output_folder + "/" + overlay_output_name + ".pdf(","pdf");
     c1->Clear();
-
-
 
     // Do kt and R cuts for each jet pt cut. i_JetPtCut = 0 corresponds to the inclusive lund plane, jet pt cuts are indexed from 1
     for (int i_pTCut = 0; i_pTCut < all_lunds[0].size(); i_pTCut++) { 
@@ -315,7 +330,7 @@ int main() {
             c1->cd(); // switch back to main canvas
 
             legend->Draw();
-            c1->Print(output_folder + "/" + "lund overlay.pdf", "pdf");
+            c1->Print(output_folder + "/" + overlay_output_name + ".pdf", "pdf");
             c1->Clear();
         }
 
@@ -372,8 +387,8 @@ int main() {
             c1->cd(); // switch back to main canvas
 
             legend->Draw();
-            if ((iDelta == delta_cuts.size() - 1) && (i_pTCut == all_lunds[0].size() - 1)) c1->Print(output_folder + "/" + "lund overlay.pdf)", "pdf");
-            else c1->Print(output_folder + "/" + "lund overlay.pdf", "pdf");
+            if ((iDelta == delta_cuts.size() - 1) && (i_pTCut == all_lunds[0].size() - 1)) c1->Print(output_folder + "/" + overlay_output_name + ".pdf)", "pdf");
+            else c1->Print(output_folder + "/" + overlay_output_name + ".pdf", "pdf");
             c1->Clear();
 
         }

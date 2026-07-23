@@ -29,22 +29,26 @@
 // For the background
 #include "backSubTools.h"
 #include "eventData.h"
+#include "unifiedSubtractors.h"
 
 using namespace Pythia8;
 
 struct r_groomed_vars {
     double delta, jet_pt;
-}
+};
 
+/*
 class delta_getter {
 
-public:
+    public:
     
     // General
     double part_eta_max;
     double jet_eta_max;
     double Rparam;
     bool leading_jet_only;
+
+    bool debug = false;
 
     fastjet::JetDefinition jetDef_akt; // for jet identification
     fastjet::JetDefinition jetDef_ca_recluster; // for reclustering the antikt-identified jets to make Lund plane
@@ -61,7 +65,7 @@ public:
     my_pc_subtractor pc_subtractor;
 
     // Filtering:
-    /*
+    
     double Rfilt = .3;
     double nfilt = 3;
     fastjet::Filter filter;
@@ -70,7 +74,7 @@ public:
     double prune_zcut = .2;
     double Rcut_factor = .2;
     fastjet::Pruner pruner;
-    */
+    
 
     // Jet by jet constituent subtraction
     fastjet::GridMedianBackgroundEstimator bge; // GridMedianBackgroundEstimator is faster than JetMedianBackgroundEstimator and "performs equally well in nearly all cases"
@@ -98,14 +102,14 @@ public:
         1, 
         fastjet::E_scheme, 
         fastjet::Best),
-    pc_subtractor(Rparam_in),
+    pc_subtractor(Rparam_in, part_eta_max),
     /*
     pruner(
         fastjet::cambridge_algorithm, 
         prune_zcut, 
         Rcut_factor),
     filter(Rfilt, fastjet::SelectorNHardest(nfilt)),
-    */
+    
     bge(part_eta_max_in, .5), // particle eta max, grid spacing
     subtractor(&bge),
     rsd(beta_rsd, z_cut_rsd, Rparam_in),
@@ -127,9 +131,9 @@ public:
 
     // Takes event particles. Finds jets with akt. Reclusters those jets using CA.
     // returns a vector of the delta of the first splitting for all the jets.
-    vector<r_groomed_vars> get_deltas(vector<fastjet::PseudoJet> particles, bg_sub_options ops) {
+    vector<r_groomed_vars> get_deltas(vector<fastjet::PseudoJet> particles, unified_sub_options ops) {
 
-        vector<r_groomed_vars> deltas;
+        vector<r_groomed_vars> all_vars;
         
         if (ops.event_sub == "ConSub") {
             bge.set_particles(particles);
@@ -147,7 +151,7 @@ public:
 
 
         fastjet::ClusterSequence clust_seq(particles, jetDef_akt);
-        vector<fastjet::PseudoJet> jets = sorted_by_pt(jet_eta_selector(clust_seq.inclusive_jets(ptMin)));
+        vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(jet_eta_selector(clust_seq.inclusive_jets()));
 
 
         for (const fastjet::PseudoJet& jet : jets) { 
@@ -171,7 +175,7 @@ public:
                 fastjet::PseudoJet reclustered_jet = sorted_by_pt(reclusterSeq_temp.inclusive_jets())[0];
                 constituents = recursive_soft_drop_constit(reclustered_jet, Rparam);
             }
-            else if (ops.jet_sub != "RSD_contrib") {
+            else if ((ops.jet_sub != "RSD_contrib") && (ops.jet_sub != "null")) {
                 cout << "Warning: Unknown jet subtraction request. No subtraction will be performed" << endl;
                 constituents = jet.constituents();
             }
@@ -181,17 +185,22 @@ public:
             }
 
             if (constituents.empty()) {
+                //cout << "No remaining constituents after jet subtraction" << endl;
                 break; // Breaks are used because jets are in pt order, so once one has no remaining particles after subtraction, we've reacehed the jets that are all/mostly backgroun
             }
             
             if (debug) cout << "reclusterSeq with new jet constituents" << endl;
             fastjet::ClusterSequence reclusterSeq(constituents, jetDef_ca_recluster);
-            jet = sorted_by_pt(reclusterSeq.inclusive_jets())[0];
+            fastjet::PseudoJet reclustered_jet = fastjet::sorted_by_pt(reclusterSeq.inclusive_jets())[0];
 
             // The subtractions that work on an already CA reclustered jet
             if (ops.jet_sub = "RSD_contrib") {
-                jet = rsd(jet);
+                reclustered_jet = rsd(reclustered_jet);
             }
+
+            if (debug) cout << "Reclustered jet pt: " << reclustered_jet.pt() << endl;
+            double jet_pt = reclustered_jet.pt();
+            ops.weighted_jet_pt_hist->Fill(jet_pt, ops.bin_weight);
 
             fastjet::PseudoJet parent1, parent2;
             // For each jet, iteratively compare branchings
@@ -211,7 +220,7 @@ public:
                     continue;
                 }
                 
-                deltas.push_back(r_groomed_vars{.delta = delta, .jet_pt = jet.pt()});
+                all_vars.push_back(r_groomed_vars{.delta = delta, .jet_pt = jet_pt});
                 break;
 
                 
@@ -220,12 +229,95 @@ public:
             if (leading_jet_only) break;
 
         } // end jet loop 
-        return deltas;
+        return all_vars;
     } // end get_deltas() def
 };
+*/
+
+class DeltaGetter2 {
+
+    public:
+    double Rparam, jet_eta_max, part_eta_max;
+    double z_cut = .2;
+    double beta = 0;
+
+    bool debug = false;
+
+    fastjet::JetDefinition jet_def_akt;
+
+    fastjet::Selector jet_eta_selector;
+
+    EventSubtractor event_subtractor;
+    JetSubtractor jet_subtractor;
+
+    
+    
+    DeltaGetter2(double Rparam_in, double jet_eta_max_in, double part_eta_max_in):
+    jet_def_akt(fastjet::antikt_algorithm, Rparam_in, fastjet::E_scheme, fastjet::Best),
+    event_subtractor(part_eta_max_in),
+    jet_subtractor(Rparam_in, part_eta_max_in)
+    {
+        Rparam = Rparam_in;
+
+        jet_eta_selector = fastjet::SelectorAbsRapMax(jet_eta_max_in);
+
+    }
+
+    vector<r_groomed_vars> get_deltas(vector<fastjet::PseudoJet>* particles, unified_sub_options sub_ops) {
+
+        vector<r_groomed_vars> all_vars;
+
+        if (sub_ops.event_sub != event_subtraction::null) {
+            event_subtractor.subtract(particles, sub_ops.event_sub);
+        }
+
+        // Now cluster first set of jets from here
+        if(debug) cout << "DeltaGetter2: clustering particles" << endl;
+        fastjet::ClusterSequence clust_seq(*particles, jet_def_akt);
+        vector<fastjet::PseudoJet> jets = jet_eta_selector(clust_seq.inclusive_jets());
+
+        if (debug) cout << "Looping through jets" << endl;
+        for (fastjet::PseudoJet jet : jets) {
+
+            jet_subtractor.subtract_recluster(&jet, sub_ops.jet_sub, particles);
+
+            double jet_pt = jet.pt();
+            sub_ops.weighted_jet_pt_hist->Fill(jet_pt, sub_ops.bin_weight);
 
 
-TString bool2Str(bool b) {return b? "True" : "False";}
+            fastjet::PseudoJet parent1, parent2;
+            // For each jet, iteratively compare branchings
+            while (jet.has_parents(parent1, parent2)) { 
+                // In each case, identify the higher pt parent 
+                fastjet::PseudoJet harder  = (parent1.pt() > parent2.pt()) ? parent1 : parent2;
+                fastjet::PseudoJet softer  = (parent1.pt() > parent2.pt()) ? parent2 : parent1;
+                
+                // rap-phi distance, delta = delta_ab
+                double delta = harder.delta_R(softer);
+                
+                double z = softer.pt() / (harder.pt() + softer.pt());
+
+                // Softdrop as described in https://arxiv.org/pdf/1402.2657
+                if (z < z_cut * pow(delta/Rparam, beta)) { // does not meet soft drop condition
+                    jet = harder;
+                    continue;
+                }
+                
+                all_vars.push_back(r_groomed_vars{.delta = delta, .jet_pt = jet_pt});
+                break;
+
+                
+            } // end while loop
+
+        } // end jet loop
+
+        return all_vars;
+
+    } // end get_deltas def
+
+
+
+};
 
 int main() {
     
@@ -233,17 +325,18 @@ int main() {
     TString output_file_name = "r_groomed";
     //TString root_output_name = output_name;
 
-    vector<back_sub_options> all_sub_ops = {
-        back_sub_options{.name = "Pythia", .embed_in_bg = false},
-        back_sub_options{.name = "Embedded", .embed_in_bg = true},
-        back_sub_options{.name = "ConSub", .event_sub = "ConSub", .embed_in_bg = true},
-        back_sub_options{.name = "SoftKiller", .event_sub = "SoftKill", .embed_in_bg = true},
-        back_sub_options{.name = "My PC", .jet_sub = "MyPCGM", .embed_in_bg = true}
+    vector<unified_sub_options> all_sub_ops = {
+        unified_sub_options{.name = "Pythia", .embed_in_bg = false},
+        unified_sub_options{.name = "Embedded", .embed_in_bg = true},
+        //unified_sub_options{.name = "ConSub", .event_sub = event_subtraction::ConSub, .embed_in_bg = true},
+        unified_sub_options{.name = "SoftKiller", .event_sub = event_subtraction::SoftKill, .embed_in_bg = true},
+        //unified_sub_options{.name = "My PC", .jet_sub = jet_subtraction::MyPCGM, .embed_in_bg = true},
+        //unified_sub_options{.name = "RSD (mine)", .jet_sub = jet_subtraction::RSD_mine, .embed_in_bg = true}
     };
 
     
     TString event_file_name = "event_test.root";
-    vector<TString> background_file_names = {"backgrounds28k.root"};
+    vector<TString> background_file_names = {"backgrounds14ka.root", "backgrounds14kb.root"};
 
 
     // For jet pt cuts of the lund plane
@@ -256,17 +349,18 @@ int main() {
         {100, 120}
     };
 
+    bool debug = false;
 
     TString notes = ""; // leading jets only
     double part_eta_max = .9; // Particle eta max;
     double jet_eta_max = .5; // jet eta max;
-    double Rparam = 0.4;
+    double Rparam = .4;
     if (part_eta_max - Rparam != jet_eta_max) cout << "WARNING: Rparam, part_eta_max, and jet_eta_max are not in agreement" << endl;
     double part_pt_min = .15;
 
     bool leading_jet_only = false;
 
-    bool normalize = true; // normalize histograms
+    bool normalize = false; // normalize histograms
     
     TString space = " ";
     
@@ -276,21 +370,19 @@ int main() {
 
     //=======================================================================
     // Declare 2D ROOT histograms
-    double nBins = 20;
+    int nBins = 20;
     double Rg_min = 0;
     double Rg_max = .5;
     double Rg_plot_length = (Rg_max - Rg_min) / nBins;
 
-    vector<vector<TH1F*>> all_Rg_hists;
+    vector<vector<TH1F*>> all_Rg_hists(all_sub_ops.size());
 
+    if (debug) cout << "Adding hists to all_Rg_hists" << endl;
     for (int iOp = 0; iOp < all_sub_ops.size(); iOp++) {
         for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) {
-            all_Rg_hists[iOp].push_back(new TH1F(sub_ops.name + space + iCut, "R_{groomed}: " + jet_pt_cuts[iCut][0] " < Jet p_{T} < " jet_pt_cuts[iCut][1] +"; delta R; weighted counts", nBins, Rg_min, Rg_max));
-        }       
-    }
-
-    for (back_sub_options ops : all_sub_ops) {
-        ops.weighted_jet_pt_hist = new TH1F("weighted_jet_pt_hist" + space + ops.name, "Weighted Jet p_{T} for" + space + ops.name + "; jet p_{T}; Weighted counts", 400, 0, 200);
+            all_Rg_hists[iOp].push_back(new TH1F(all_sub_ops[iOp].name + space + iCut, "R_{groomed}:" + space + jet_pt_cuts[iCut][0] + " < Jet p_{T} < " + jet_pt_cuts[iCut][1] + "; delta R; weighted counts", nBins, Rg_min, Rg_max));
+        }
+        all_sub_ops[iOp].weighted_jet_pt_hist = new TH1F("jet_pt_hist" + space + all_sub_ops[iOp].name, "Weighted Jet p_{T} for" + space + all_sub_ops[iOp].name + "; jet p_{T}; Weighted counts", 400, 0, 200);     
     }
 
     /*
@@ -329,9 +421,9 @@ int main() {
 
     //=========================================================================
     // Set up fastjet analysis
-    my_pc_subtractor pc_subtractor(Rparam);
-    delta_getter dg(leading_jet_only, Rparam, jet_eta_max);
-    rho_estimator rho_finder(Rparam, jet_eta_max);
+    //my_pc_subtractor pc_subtractor(Rparam, part_eta_max);
+    DeltaGetter2 dg(Rparam, jet_eta_max, part_eta_max);
+    //RhoEstimator rho_finder(Rparam, jet_eta_max, part_eta_max);
     
     //=========================================================================
     // Event loop
@@ -347,6 +439,7 @@ int main() {
             cout << counter << " events analyzed from ROOT file" << endl;
             counter += 1000;
         }
+        if(debug) cout << "iEvent " << iEvent << endl;
 
         //met.GetEntry(iEvent); get_particles makes this same call
 
@@ -359,10 +452,11 @@ int main() {
         
         for (int iOp = 0; iOp < all_sub_ops.size(); iOp++) {
             if (all_sub_ops[iOp].embed_in_bg) continue; 
-            
-            vector<r_groomed_vars> deltas = dg.get_deltas(event_particles, all_sub_ops[iOp]);
+            all_sub_ops[iOp].bin_weight = met.bin_weight;
+
+            if (debug) cout << "Calling get_deltas for option " << iOp << endl;
+            vector<r_groomed_vars> deltas = dg.get_deltas(&event_particles, all_sub_ops[iOp]);
             for (r_groomed_vars vars : deltas) {
-                
                 for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) { // Find which cuts to add this to
                     
                     if ((vars.jet_pt > jet_pt_cuts[iCut][0]) && (vars.jet_pt < jet_pt_cuts[iCut][1])) {
@@ -374,10 +468,8 @@ int main() {
 
         // =====================================================================================================
         // Embedding in the background
-         
-        //mbt.GetEntry(iEvent); get_particles also makes GetEntry(iEvent) call
-        vector<fastjet::PseudoJet> background_prtcls = mbt.get_particles(iEvent);
         
+        vector<fastjet::PseudoJet> background_prtcls = mbt.get_particles(iEvent); //mbt.GetEntry(iEvent); get_particles also makes GetEntry(iEvent) call
         move(background_prtcls.begin(), background_prtcls.end(), back_inserter(all_particles));
 
         // =======================================================================================================================
@@ -385,8 +477,9 @@ int main() {
         
         for (int iOp = 0; iOp < all_sub_ops.size(); iOp++) {
             if (!all_sub_ops[iOp].embed_in_bg) continue; 
-            
-            vector<r_groomed_vars> deltas = dg.get_deltas(event_particles, all_sub_ops[iOp]);
+            all_sub_ops[iOp].bin_weight = met.bin_weight;
+
+            vector<r_groomed_vars> deltas = dg.get_deltas(&all_particles, all_sub_ops[iOp]);
             for (r_groomed_vars vars : deltas) {
                 
                 for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) { // Find which cuts to add this to
@@ -428,18 +521,22 @@ int main() {
     //=======================================================
     
     // Normalizing
+    if (debug) cout << "Normalizing histograms" << endl;
     if (normalize) {
         for (int iOp = 0; iOp < all_sub_ops.size(); iOp++) {
             for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) {
+                if (debug) cout << "Normalizing for iOp " << iOp << " and iCut " << iCut << endl;
                 double nJets_weighted = 0;
-                for (int iBin  = all_sub_ops[iOp].weighted_jet_pt_hist->FindBin(jet_pt_cuts[iCut][0]);
+                if (debug) cout << "This cut is for " << jet_pt_cuts[iCut][0] << " to " << jet_pt_cuts[iCut][1] << endl;
+                if (debug) cout << "Adding up jets from bins " << all_sub_ops[iOp].weighted_jet_pt_hist->FindBin(jet_pt_cuts[iCut][0]) << " to " << all_sub_ops[iOp].weighted_jet_pt_hist->FindBin(jet_pt_cuts[iCut][1]) << endl;
+                for (int iBin = all_sub_ops[iOp].weighted_jet_pt_hist->FindBin(jet_pt_cuts[iCut][0]);
                         iBin <= all_sub_ops[iOp].weighted_jet_pt_hist->FindBin(jet_pt_cuts[iCut][1]);
                         iBin ++) { // Add up all weighted jets in this bin
                     nJets_weighted += all_sub_ops[iOp].weighted_jet_pt_hist->GetBinContent(iBin);
                 }
-                all_Rg_hists[iOp][iCut]->Scale(1 / (Rg_plot_length * nJets_weighted))
+                all_Rg_hists[iOp][iCut]->Scale(1 / (Rg_plot_length * nJets_weighted));
                 
-                
+    
             }
         }
     }
@@ -481,16 +578,17 @@ int main() {
 
     // put hist in vector
     //vector<TH1F*> hists = {bg_hist, sd_hist, pc_hist, prune_hist, filter_hist, cs_hist, softKill_hist, true_hist};
-    vector<TH1F*> hists = {bg_hist, pc_hist, cs_hist, softKill_hist, true_hist};
+    //vector<TH1F*> hists = {bg_hist, pc_hist, cs_hist, softKill_hist, true_hist};
     
     double display_yMax = 0;
 
+    if (debug) cout << "Adding all hists to output file" << endl;
     for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) {
         TLegend* legend = new TLegend(.1, .7, .28, .9);
 
         for (int iOp = 0; iOp < all_sub_ops.size(); iOp++) {
 
-            display_yMax = max(display_yMax, all_Rg_hists[iOp][iCut]->GetMaximum());
+            //display_yMax = max(display_yMax, all_Rg_hists[iOp][iCut]->GetMaximum());
 
             if (iOp == 0) all_Rg_hists[iOp][iCut]->Draw("HIST PLC");
             else all_Rg_hists[iOp][iCut]->Draw("HIST PLC SAME");
@@ -498,17 +596,42 @@ int main() {
             legend->AddEntry(all_Rg_hists[iOp][iCut], all_sub_ops[iOp].name, "l");
         }
 
-        all_Rg_hists[0][iCut]->SetStats(false); // no stat box
-        all_Rg_hists[0][iCut]->GetYaxis()->SetRangeUser(0, display_yMax * 1.1);
-        c1->Update();
+        //all_Rg_hists[0][iCut]->SetStats(false); // no stat box
+        //all_Rg_hists[0][iCut]->GetYaxis()->SetRangeUser(0, display_yMax * 1.1);
+        //c1->Update();
 
         legend->Draw();
-        if (iCut == jet_pt_cuts.size() - 1) c1->Print(output_folder_name + output_file_name + ".pdf)", "pdf");
-        else c1->Print(output_folder_name + output_file_name + ".pdf", "pdf");
-
+        //if (iCut == jet_pt_cuts.size() - 1) c1->Print(output_folder_name + output_file_name + ".pdf)", "pdf");
+        //else c1->Print(output_folder_name + output_file_name + ".pdf", "pdf");
+        c1->Print(output_folder_name + output_file_name + ".pdf", "pdf");
+        c1->Clear();
 
     }
 
+    // Print jet pt histograms
+    TLegend* legend = new TLegend(.1, .7, .28, .9);
+    //display_yMax = 0;
+    c1->SetLogy(1);
+    c1->cd();
+    for (int iOp = 0; iOp < all_sub_ops.size(); iOp++ ) {
+        //display_yMax = max(display_yMax, all_sub_ops[iOp].weighted_jet_pt_hist->GetMaximum());
+        
+        //c1->cd();
+        if (iOp == 0) all_sub_ops[iOp].weighted_jet_pt_hist->Draw("HIST PLC");
+        else all_sub_ops[iOp].weighted_jet_pt_hist->Draw("HIST PLC SAME");
+        legend->AddEntry(all_sub_ops[iOp].weighted_jet_pt_hist, all_sub_ops[iOp].name, "l");
+    }
+
+    all_sub_ops[0].weighted_jet_pt_hist->SetStats(false); // no stat box
+    all_sub_ops[0].weighted_jet_pt_hist->SetTitle("Weighted Jet pT; Jet pT; Weighted Counts");
+    //all_sub_ops[0].weighted_jet_pt_hist->GetYaxis()->SetRangeUser(0, display_yMax * 1.1);
+    //c1->SetLogy(1);
+    //c1->Update();
+
+    legend->Draw();
+
+    c1->Print(output_folder_name + output_file_name + ".pdf)", "pdf");
+    c1->Clear();
     
     // Since ROOT histograms point to the data they store, once the eventRootFile
     // closes they no longer have access to their data
@@ -517,5 +640,3 @@ int main() {
 
     return 0;
 }
-
-

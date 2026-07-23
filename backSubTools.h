@@ -21,7 +21,7 @@
 using namespace std;
 
 
-struct back_sub_options {
+struct bg_sub_options {
     TString name;
     TString event_sub = "null";
     TString jet_sub = "null";
