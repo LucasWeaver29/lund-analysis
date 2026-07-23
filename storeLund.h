@@ -118,7 +118,7 @@ class LundGroomer {
     // Takes event particles, int to count number of jets, int to record iCut, bg_sub_options.
     // Finds jets with akt. Reclusters those jets using CA.
     // returns a vector of the delta of the kinematic variables of those jets' splittings for the lund plane.
-    vector<lund_kin_vars> get_kin_vars(vector<fastjet::PseudoJet> particles, back_sub_options ops) {
+    vector<lund_kin_vars> get_kin_vars(vector<fastjet::PseudoJet> particles, bg_sub_options ops) {
 
         vector<lund_kin_vars> all_kinematic_vars;
 
@@ -198,8 +198,8 @@ class LundGroomer {
             }
 
             if (debug) cout << "reclusterSeq with new jet constituents" << endl;
-            fastjet::ClusterSequenceArea reclusterSeq(constituents, jetDef_ca_recluster, area_def);
-            //fastjet::ClusterSequence reclusterSeq(constituents, jetDef_ca_recluster);
+            //fastjet::ClusterSequenceArea reclusterSeq(constituents, jetDef_ca_recluster, area_def);
+            fastjet::ClusterSequence reclusterSeq(constituents, jetDef_ca_recluster);
             jet = fastjet::sorted_by_pt(reclusterSeq.inclusive_jets())[0];
             
             // Next, the things that work only on an already CA reclustered jet, and return a new jet

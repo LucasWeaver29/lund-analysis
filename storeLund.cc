@@ -30,7 +30,7 @@ int main() {
     //"z_cut = .2, beta = 3";
 
     
-    back_sub_options lund_ops = back_sub_options{.name = "Embedded, pT Rho Sub, from event_Zoltans", .jet_sub = "pT_rho_sub"};
+    bg_sub_options lund_ops = bg_sub_options{.name = "SoftKill, from event_Zoltans", .event_sub = "SoftKill"};
         
     bool embed_in_bg = true;
 
