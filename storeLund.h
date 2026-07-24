@@ -73,7 +73,12 @@ class LundGroomer {
     fastjet::contrib::RecursiveSoftDrop rsd;
 
     fastjet::contrib::SoftDrop sd;
+
+    // So either can be used in game
+    std::unique_ptr<fastjet::ClusterSequence> cs_ptr;
+    std::unique_ptr<fastjet::ClusterSequenceArea> csa_ptr;
     
+    double rho, jet_area;
 
     // constructor
     LundGroomer(double ptMin_in, double ptMax_in, bool leading_jet_only_in, double Rparam_in, double jet_eta_max_in, double part_eta_max_in):
@@ -147,12 +152,21 @@ class LundGroomer {
         else if (ops.event_sub == "null") {;}
         else cout << "Warning: Unknown event subtraction request" << endl;
 
-        double rho;
-        if (ops.jet_sub == "pT_rho_sub") rho = rho_estimator.rho(particles);
-        
-        
-        fastjet::ClusterSequence clust_seq(particles, jetDef_akt);
-        vector<fastjet::PseudoJet> jets = sorted_by_pt(jet_eta_selector(clust_seq.inclusive_jets()));
+        vector<fastjet::PseudoJet> jets;
+        if (ops.jet_sub == "pT_rho_sub") { // If need area subtraction, need to record rho and cluster with area.
+            bge.set_particles(particles);
+            rho = bge.estimate().rho();
+            csa_ptr = std::make_unique<fastjet::ClusterSequenceArea>(particles, jetDef_akt, area_def);
+            jets = jet_eta_selector(csa_ptr->inclusive_jets());
+        }
+        else {
+            cs_ptr = std::make_unique<fastjet::ClusterSequence>(particles, jetDef_akt);
+            jets = jet_eta_selector(cs_ptr->inclusive_jets());
+        }
+
+
+        //fastjet::ClusterSequence clust_seq(particles, jetDef_akt);
+        //vector<fastjet::PseudoJet> jets = sorted_by_pt(jet_eta_selector(clust_seq.inclusive_jets()));
 
         int jet_counter = -1;
 
@@ -163,6 +177,8 @@ class LundGroomer {
             if (debug) {
                 cout << "Jet num " << jet_counter << endl;
             }
+
+            if (ops.jet_sub = "pT_rho_sub") jet_area = jet.area(); // Must get area before reclustering
 
             vector<fastjet::PseudoJet> constituents;
             
@@ -213,19 +229,18 @@ class LundGroomer {
                 jet = rsd(jet);
             }
 
-            double jet_pt;
+            double jet_pt = jet.pt();
             if (ops.jet_sub == "pT_rho_sub") {
-                jet_pt = jet.pt() - rho*jet.area();
+                cout << "Initial pT = " << jet_pt << ". rho = " << rho << ". area = " << jet_area << endl;
+                jet_pt -= rho*jet_area;
             }
-            else jet_pt =  jet.pt();
+           
             
 
             if (ops.weighted_jet_pt_hist != nullptr) {
                 if(debug) cout << "Filling weighted jet pt hist: Jet pt =  " << jet.pt() << ", bin weight = " << ops.bin_weight << endl;
                 ops.weighted_jet_pt_hist->Fill(jet_pt, ops.bin_weight);
             }
-
-            // jets already selected for eta by eta selector
 
             
             if (debug) cout << "Beginning grooming + declustering" << endl;

@@ -17,17 +17,16 @@
 using namespace std;
 
 
-
 int main() {
 
     //vector<TString> lund_file_names = {"Pythia Lund, 2.3mil.root"};
     vector<TString> input_files = {
         // Not groomed
         
+        "Pythia, from event_Zoltans",
         "Embedded, from event_Zoltans",
         "My PC, from event_Zoltans",
-        "Pythia, from event_Zoltans",
-        "RSD (mine), from event_Zoltans",
+        "RSD (mine), from event_Zoltans"
         
         
         // GROOMED with SD (mine, all)
@@ -42,9 +41,11 @@ int main() {
         
         
 
-        /* TEST
+        // From event_test, on my pc
+        /*
         "Pythia, SD (mine, all), from event_test",
         "Embedded, SD (mine, all), from event_test",
+        "Embedded, Area Sub, from event_test",
         "ConSub, SD (mine, all), from event_test", 
         "My PC Geometric Sub, SD (mine, all), from event_test"
         */
@@ -57,7 +58,7 @@ int main() {
     vector<TString> file_short_names = {};
     for (TString name : input_files) {
         TString short_name = name;
-        file_short_names.push_back(short_name.ReplaceAll("(mine, all), from event_Zoltans", ""));
+        file_short_names.push_back(short_name.ReplaceAll(", from event_Zoltans", ""));
     }
 
     TString output_folder = "LundPlanes";
@@ -239,7 +240,7 @@ int main() {
     //=========================================================
     // Do kt and R cuts to compare different lunds, save to lund overlay.pdf
     //=========================================================
-    TString overlay_output_name = "lund overlay, groomed";
+    TString overlay_output_name = "lund overlay, no grooming";
 
 
     TH2F *reference_lund = (TH2F*)all_lunds[0][0]->Clone(); // First cut of first file is used as reference

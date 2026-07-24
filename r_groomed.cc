@@ -1,5 +1,5 @@
 
-#include "pythia8/Pythia.h"
+//#include "pythia8/Pythia.h"
 #include "fastjet/PseudoJet.hh"
 #include "fastjet/ClusterSequence.hh"
 #include "fastjet/ClusterSequenceArea.hh"
@@ -31,7 +31,7 @@
 #include "eventData.h"
 #include "unifiedSubtractors.h"
 
-using namespace Pythia8;
+using namespace std;
 
 struct r_groomed_vars {
     double delta, jet_pt;
@@ -250,9 +250,19 @@ class DeltaGetter2 {
     EventSubtractor event_subtractor;
     JetSubtractor jet_subtractor;
 
+    // Using these pointers allows either of the desired cluster sequences to be declared and used
+    std::unique_ptr<fastjet::ClusterSequence> cs_ptr;
+    std::unique_ptr<fastjet::ClusterSequenceArea> csa_ptr;
+    //vector<fastjet::PseudoJet>* jets;
+
     // For area based subtraction
     fastjet::GridMedianBackgroundEstimator bge; // GridMedianBackgroundEstimator is faster than JetMedianBackgroundEstimator and "performs equally well in nearly all cases"
-    double rho;
+    //RhoEstimator rho_estimator;
+    // So we don't have to always declare variables that are only then used when jet_sub == Area_pT
+    double rho; 
+    double jet_area; 
+    fastjet::AreaDefinition area_def;
+
 
     
     
@@ -260,7 +270,9 @@ class DeltaGetter2 {
     jet_def_akt(fastjet::antikt_algorithm, Rparam_in, fastjet::E_scheme, fastjet::Best),
     event_subtractor(part_eta_max_in),
     jet_subtractor(Rparam_in, part_eta_max_in),
-    bge(part_eta_max_in, .5) // part_eta_max, grid spacing
+    bge(part_eta_max_in, .5), // part_eta_max, grid spacing
+    area_def(fastjet::active_area, fastjet::GhostedAreaSpec(part_eta_max_in))
+    //rho_estimator(Rparam_in, jet_eta_max_in, part_eta_max)
     {
         Rparam = Rparam_in;
 
@@ -268,34 +280,42 @@ class DeltaGetter2 {
 
     }
 
-    vector<r_groomed_vars> get_deltas(vector<fastjet::PseudoJet>* particles, unified_sub_options sub_ops) {
+    vector<r_groomed_vars> get_deltas(vector<fastjet::PseudoJet> particles, unified_sub_options sub_ops) {
 
         vector<r_groomed_vars> all_vars;
 
         if (sub_ops.event_sub != event_subtraction::null) {
-            event_subtractor.subtract(particles, sub_ops.event_sub);
+            event_subtractor.subtract(&particles, sub_ops.event_sub);
         }
 
-        if (sub_ops.jet_sub == jet_subtraction::Area_pT) {
-            bge.set_particles(*particles);
-            rho = bge.rho();
-        }
+        if (particles.empty()) return all_vars;
 
-        // Now cluster first set of jets from here
         if(debug) cout << "DeltaGetter2: clustering particles" << endl;
-        fastjet::ClusterSequence clust_seq(*particles, jet_def_akt);
-        vector<fastjet::PseudoJet> jets = jet_eta_selector(clust_seq.inclusive_jets());
+        vector<fastjet::PseudoJet> jets;
+        if (sub_ops.jet_sub == jet_subtraction::Area_pT) { // Use cluster sequence area, and record rho
+            bge.set_particles(particles);
+            rho = bge.estimate().rho();
+            csa_ptr = std::make_unique<fastjet::ClusterSequenceArea>(particles, jet_def_akt, area_def);
+            jets = jet_eta_selector(csa_ptr->inclusive_jets());
+        }
+        else { // Use regular cluster sequence
+            cs_ptr = std::make_unique<fastjet::ClusterSequence>(particles, jet_def_akt);
+            jets = jet_eta_selector(cs_ptr->inclusive_jets());
+        }
+
 
         if (debug) cout << "Looping through jets" << endl;
         for (fastjet::PseudoJet jet : jets) {
 
+            if (sub_ops.jet_sub == jet_subtraction::Area_pT) jet_area = csa_ptr->area(jet); // Need to get area before jet is reclustered in jet_subtractor
+
             jet_subtractor.subtract_recluster(&jet, sub_ops.jet_sub, particles);
 
-            double jet_pt = jet.pt();
+            double jet_pt = jet.pt(); // Need to take pt after any subtractions have been applied. If no subtractions are applied, pt should be the same.
             if (sub_ops.jet_sub == jet_subtraction::Area_pT) {
-                cout << "area pt sub. jet normal pt = " << jet_pt << ", area = " << jet.area() << ", rho = " << rho << endl;
-                jet_pt -= jet.area() * rho;
+                jet_pt -= jet_area * rho;
             }
+            if (debug) cout << "Jet_pt = " << jet_pt << endl;
             sub_ops.weighted_jet_pt_hist->Fill(jet_pt, sub_ops.bin_weight);
 
 
@@ -336,22 +356,37 @@ class DeltaGetter2 {
 int main() {
     
     TString output_folder_name = "";
-    TString output_file_name = "r_groomed";
+    TString output_file_name = "r_groomed_fixedPointers";
     //TString root_output_name = output_name;
 
     vector<unified_sub_options> all_sub_ops = {
-        //unified_sub_options{.name = "Pythia", .embed_in_bg = false},
+        unified_sub_options{.name = "Pythia", .embed_in_bg = false},
+        unified_sub_options{.name = "Embedded, area sub", .jet_sub = jet_subtraction::Area_pT, .embed_in_bg = true},
         unified_sub_options{.name = "Embedded", .embed_in_bg = true},
-        //unified_sub_options{.name = "ConSub", .event_sub = event_subtraction::ConSub, .embed_in_bg = true},
-        //unified_sub_options{.name = "SoftKiller", .event_sub = event_subtraction::SoftKill, .embed_in_bg = true},
-        //unified_sub_options{.name = "My PC", .jet_sub = jet_subtraction::MyPCGM, .embed_in_bg = true},
-        //unified_sub_options{.name = "RSD (mine)", .jet_sub = jet_subtraction::RSD_mine, .embed_in_bg = true}
+        unified_sub_options{.name = "ConSub", .event_sub = event_subtraction::ConSub, .embed_in_bg = true},
+        unified_sub_options{.name = "SoftKiller", .event_sub = event_subtraction::SoftKill, .embed_in_bg = true},
+        unified_sub_options{.name = "My PC", .jet_sub = jet_subtraction::MyPCGM, .embed_in_bg = true},
+        unified_sub_options{.name = "RSD (mine)", .jet_sub = jet_subtraction::RSD_mine, .embed_in_bg = true}
     };
 
-    
     TString event_file_name = "event_test.root";
     vector<TString> background_file_names = {"backgrounds14ka.root", "backgrounds14kb.root"};
 
+    /*
+    TString event_file_name = "event_Zoltans.root";
+    vector<TString> background_file_names = {
+        
+        
+        "backgrounds2.7m.a.root", 
+        "backgrounds2.7m.b.root",
+        "backgrounds2.7m.c.root",
+        "backgrounds2.7m.d.root",
+        "backgrounds2.7m.e.root",
+        "backgrounds2.7m.f.root"
+        
+        
+    };
+    */
 
     // For jet pt cuts of the lund plane
     vector<vector<double>> jet_pt_cuts = {
@@ -469,7 +504,7 @@ int main() {
             all_sub_ops[iOp].bin_weight = met.bin_weight;
 
             if (debug) cout << "Calling get_deltas for option " << iOp << endl;
-            vector<r_groomed_vars> deltas = dg.get_deltas(&event_particles, all_sub_ops[iOp]);
+            vector<r_groomed_vars> deltas = dg.get_deltas(event_particles, all_sub_ops[iOp]);
             for (r_groomed_vars vars : deltas) {
                 for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) { // Find which cuts to add this to
                     
@@ -493,7 +528,7 @@ int main() {
             if (!all_sub_ops[iOp].embed_in_bg) continue; 
             all_sub_ops[iOp].bin_weight = met.bin_weight;
 
-            vector<r_groomed_vars> deltas = dg.get_deltas(&all_particles, all_sub_ops[iOp]);
+            vector<r_groomed_vars> deltas = dg.get_deltas(all_particles, all_sub_ops[iOp]);
             for (r_groomed_vars vars : deltas) {
                 
                 for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) { // Find which cuts to add this to
@@ -570,7 +605,7 @@ int main() {
     TString line2 = "Events from: " + event_file_name;
     TString line3 = "Backgrounds from: " + print_vec(background_file_names);
     TString line4 = "Leading jet only: " + bool2Str(leading_jet_only);
-    TString line5 = "Normalized: " + bool2str(normalize);
+    TString line5 = "Normalized: " + bool2Str(normalize);
 
     TString line6 = "Jet radius: " + to_string(Rparam);
     TString line7 = "Particle eta max: " + to_string(part_eta_max);

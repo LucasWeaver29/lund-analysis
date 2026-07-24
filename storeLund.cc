@@ -30,11 +30,13 @@ int main() {
     //"z_cut = .2, beta = 3";
 
     
-    bg_sub_options lund_ops = bg_sub_options{.name = "SoftKill, from event_Zoltans", .event_sub = "SoftKill"};
+    bg_sub_options lund_ops = bg_sub_options{.name = "Embedded, Area Sub, from event_Zoltans", .jet_sub = "pT_rho_sub"};
         
     bool embed_in_bg = true;
 
     TString eventFileName = "event_Zoltans.root";
+    //TString eventFileName = "event_test.root";
+
     vector<TString> backgroundFileNames = {
         //"backgrounds14ka.root",
         //"backgrounds14kb.root"
