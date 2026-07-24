@@ -33,10 +33,18 @@ enum class jet_subtraction {
     null
 };
 
+enum class groom_option {
+    SD_contrib_first,
+    SD_mine_first,
+    SD_mine_all,
+    null
+};
+
 struct unified_sub_options {
     TString name;
     event_subtraction event_sub = event_subtraction::null;
     jet_subtraction jet_sub = jet_subtraction::null;
+    groom_option groom_op = groom_option::null;
     TH1F* weighted_jet_pt_hist = nullptr;
     double bin_weight;
     bool embed_in_bg;
@@ -137,10 +145,11 @@ class JetSubtractor {
 
     // Need to keep the cluster sequence alive after using it
     std::unique_ptr<fastjet::ClusterSequence> cs_ptr;
-    // If neccessary for area based subtraction
-    std::unique_ptr<fastjet::ClusterSequenceArea> csa_ptr;
+    
+    // If neccessary for area based subtraction - Actually, this needs to be done with the whole event at once, and should be done in the principal script
+    //std::unique_ptr<fastjet::ClusterSequenceArea> csa_ptr;
 
-    fastjet::AreaDefinition area_def;
+    //fastjet::AreaDefinition area_def;
 
 
     // constructor
@@ -149,27 +158,27 @@ class JetSubtractor {
     pc_subtractor(Rparam_in, part_eta_max_in),
     filter(Rfilt, fastjet::SelectorNHardest(nfilt)),
     pruner(fastjet::cambridge_algorithm, prune_zcut, Rcut_factor),
-    rsd(beta, z_cut, rsd_n_iterations),
-    area_def(fastjet::active_area, fastjet::GhostedAreaSpec(part_eta_max_in))
+    rsd(beta, z_cut, rsd_n_iterations)
+    //area_def(fastjet::active_area, fastjet::GhostedAreaSpec(part_eta_max_in))
     {
         Rparam = Rparam_in;
     }
 
 
 
-
-    void subtract_recluster(fastjet::PseudoJet* jet, jet_subtraction sub, vector<fastjet::PseudoJet>* particles) {
+    // For when jets need to be reclustered with ca
+    void subtract_recluster(fastjet::PseudoJet* jet, jet_subtraction sub, vector<fastjet::PseudoJet> particles) {
 
         vector<fastjet::PseudoJet> constituents;
 
         if (sub == jet_subtraction::MyPCGM) {
-            constituents = pc_subtractor.geometric_subtract_constit(*jet, *particles);
+            constituents = pc_subtractor.geometric_subtract_constit(*jet, particles);
         }
         else if (sub == jet_subtraction::MyPCkT) {
-            constituents = pc_subtractor.kt_subtract_constit(*jet, *particles);
+            constituents = pc_subtractor.kt_subtract_constit(*jet, particles);
         }
         else if (sub == jet_subtraction::PC_parts) {
-            constituents = pc_subtractor.get_pc_particles(*jet, *particles);
+            constituents = pc_subtractor.get_pc_particles(*jet, particles);
         }
         else if (sub == jet_subtraction::RSD_mine) {
             fastjet::ClusterSequence reclusterSeq_temp(jet->constituents(), jet_def_recluster);
@@ -182,21 +191,23 @@ class JetSubtractor {
         if (constituents.empty()) {
             if (debug) cout << "No remainaing constituents after jet subtraction" << endl;
             fastjet::PseudoJet empty_jet(0,0,0,0);
-            *jet = empty_jet;
-            return;
+            constituents.push_back(empty_jet);
         } 
         
 
         if (debug) cout << "JetSubtractor: reclustering with new jet constituents" << endl;
 
+        /*
         if (sub == jet_subtraction::Area_pT) {
             csa_ptr = std::make_unique<fastjet::ClusterSequenceArea>(constituents, jet_def_recluster, area_def);
-            *jet = fastjet::sorted_by_pt(cs_ptr->inclusive_jets())[0];
+            //cs_ptr = nullptr;
+            *jet = fastjet::sorted_by_pt(csa_ptr->inclusive_jets())[0];
         }
-        else {
-            cs_ptr = std::make_unique<fastjet::ClusterSequence>(constituents, jet_def_recluster);
-            *jet = fastjet::sorted_by_pt(cs_ptr->inclusive_jets())[0];
-        }
+        */
+        
+        cs_ptr = std::make_unique<fastjet::ClusterSequence>(constituents, jet_def_recluster);
+        *jet = fastjet::sorted_by_pt(cs_ptr->inclusive_jets())[0];
+        
         
         
 

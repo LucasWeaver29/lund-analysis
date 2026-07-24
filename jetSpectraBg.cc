@@ -37,6 +37,16 @@
 
 using namespace Pythia8;
 
+
+vector<PseudoJet> particles = ...
+ClusterSequence cs(particles, anti_kt_jet_def);
+vector<PseudoJet> jets = cs.inclusive_jets();
+for (PseudoJet jet : jets) {
+    ClusterSequenceArea csa(jet.constituents(), ca_jet_def, area_def, )
+    double area = sorted_by_pt(csa.inclusive_jets)[0].area();
+}
+
+
 TString bool2Str(bool b) {return b? "True" : "False";}
 
 /*

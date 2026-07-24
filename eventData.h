@@ -17,7 +17,7 @@
 
 class my_event_tree {
 
-public:
+    public:
     // Variables to access event data from TTrees
     int ptHatMin, ptHatMax;
     double bin_weight;
@@ -130,7 +130,7 @@ public:
 
 class my_background_tree {
 
-public:
+    public:
 
     int numBGparts;
     std::vector<double>* bgPts = nullptr;
