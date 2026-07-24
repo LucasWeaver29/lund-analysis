@@ -16,6 +16,9 @@ enum class event_subtraction {
 
 
 enum class jet_subtraction {
+    // Requires different cluster sequence
+    Area_pT,
+    
     // Done with constituents
     MyPCGM,
     MyPCkT,
@@ -134,6 +137,11 @@ class JetSubtractor {
 
     // Need to keep the cluster sequence alive after using it
     std::unique_ptr<fastjet::ClusterSequence> cs_ptr;
+    // If neccessary for area based subtraction
+    std::unique_ptr<fastjet::ClusterSequenceArea> csa_ptr;
+
+    fastjet::AreaDefinition area_def;
+
 
     // constructor
     JetSubtractor(double Rparam_in, double part_eta_max_in):
@@ -141,7 +149,8 @@ class JetSubtractor {
     pc_subtractor(Rparam_in, part_eta_max_in),
     filter(Rfilt, fastjet::SelectorNHardest(nfilt)),
     pruner(fastjet::cambridge_algorithm, prune_zcut, Rcut_factor),
-    rsd(beta, z_cut, rsd_n_iterations)
+    rsd(beta, z_cut, rsd_n_iterations),
+    area_def(fastjet::active_area, fastjet::GhostedAreaSpec(part_eta_max_in))
     {
         Rparam = Rparam_in;
     }
@@ -180,8 +189,15 @@ class JetSubtractor {
 
         if (debug) cout << "JetSubtractor: reclustering with new jet constituents" << endl;
 
-        cs_ptr = std::make_unique<fastjet::ClusterSequence>(constituents, jet_def_recluster);
-       *jet = fastjet::sorted_by_pt(cs_ptr->inclusive_jets())[0];
+        if (sub == jet_subtraction::Area_pT) {
+            csa_ptr = std::make_unique<fastjet::ClusterSequenceArea>(constituents, jet_def_recluster, area_def);
+            *jet = fastjet::sorted_by_pt(cs_ptr->inclusive_jets())[0];
+        }
+        else {
+            cs_ptr = std::make_unique<fastjet::ClusterSequence>(constituents, jet_def_recluster);
+            *jet = fastjet::sorted_by_pt(cs_ptr->inclusive_jets())[0];
+        }
+        
         
 
         // Next, the things that work only on an already CA reclustered jet, and return a new jet

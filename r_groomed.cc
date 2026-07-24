@@ -18,16 +18,16 @@
 // ROOT - histogram
 #include "TH1.h"
 #include "TH1F.h"
-#include "TH2.h"
-#include "TH2F.h"
-#include "TH3.h"
-#include "TH3F.h"
+//#include "TH2.h"
+//#include "TH2F.h"
+//#include "TH3.h"
+//#include "TH3F.h"
 #include "TCanvas.h"
 #include "TLatex.h"
 #include "TLegend.h"
 
 // For the background
-#include "backSubTools.h"
+//#include "backSubTools.h"
 #include "eventData.h"
 #include "unifiedSubtractors.h"
 
@@ -250,12 +250,17 @@ class DeltaGetter2 {
     EventSubtractor event_subtractor;
     JetSubtractor jet_subtractor;
 
+    // For area based subtraction
+    fastjet::GridMedianBackgroundEstimator bge; // GridMedianBackgroundEstimator is faster than JetMedianBackgroundEstimator and "performs equally well in nearly all cases"
+    double rho;
+
     
     
     DeltaGetter2(double Rparam_in, double jet_eta_max_in, double part_eta_max_in):
     jet_def_akt(fastjet::antikt_algorithm, Rparam_in, fastjet::E_scheme, fastjet::Best),
     event_subtractor(part_eta_max_in),
-    jet_subtractor(Rparam_in, part_eta_max_in)
+    jet_subtractor(Rparam_in, part_eta_max_in),
+    bge(part_eta_max_in, .5) // part_eta_max, grid spacing
     {
         Rparam = Rparam_in;
 
@@ -271,6 +276,11 @@ class DeltaGetter2 {
             event_subtractor.subtract(particles, sub_ops.event_sub);
         }
 
+        if (sub_ops.jet_sub == jet_subtraction::Area_pT) {
+            bge.set_particles(*particles);
+            rho = bge.rho();
+        }
+
         // Now cluster first set of jets from here
         if(debug) cout << "DeltaGetter2: clustering particles" << endl;
         fastjet::ClusterSequence clust_seq(*particles, jet_def_akt);
@@ -282,6 +292,10 @@ class DeltaGetter2 {
             jet_subtractor.subtract_recluster(&jet, sub_ops.jet_sub, particles);
 
             double jet_pt = jet.pt();
+            if (sub_ops.jet_sub == jet_subtraction::Area_pT) {
+                cout << "area pt sub. jet normal pt = " << jet_pt << ", area = " << jet.area() << ", rho = " << rho << endl;
+                jet_pt -= jet.area() * rho;
+            }
             sub_ops.weighted_jet_pt_hist->Fill(jet_pt, sub_ops.bin_weight);
 
 
@@ -326,10 +340,10 @@ int main() {
     //TString root_output_name = output_name;
 
     vector<unified_sub_options> all_sub_ops = {
-        unified_sub_options{.name = "Pythia", .embed_in_bg = false},
+        //unified_sub_options{.name = "Pythia", .embed_in_bg = false},
         unified_sub_options{.name = "Embedded", .embed_in_bg = true},
         //unified_sub_options{.name = "ConSub", .event_sub = event_subtraction::ConSub, .embed_in_bg = true},
-        unified_sub_options{.name = "SoftKiller", .event_sub = event_subtraction::SoftKill, .embed_in_bg = true},
+        //unified_sub_options{.name = "SoftKiller", .event_sub = event_subtraction::SoftKill, .embed_in_bg = true},
         //unified_sub_options{.name = "My PC", .jet_sub = jet_subtraction::MyPCGM, .embed_in_bg = true},
         //unified_sub_options{.name = "RSD (mine)", .jet_sub = jet_subtraction::RSD_mine, .embed_in_bg = true}
     };
