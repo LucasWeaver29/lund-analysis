@@ -23,6 +23,7 @@ enum class jet_subtraction {
     MyPCGM,
     MyPCkT,
     PC_parts,
+    PC_with_cf, // requires clustering to have been done with area
     // Requires first clusterings with CA, then getting constituents
     RSD_mine,
 
@@ -30,6 +31,7 @@ enum class jet_subtraction {
     Filter,
     Prune,
     RSD_contrib,
+
     null
 };
 
@@ -141,7 +143,7 @@ class JetSubtractor {
 
     // RecursiveSoftDrop - fastjet contrib
     fastjet::contrib::RecursiveSoftDrop rsd;
-    int rsd_n_iterations = 5;
+    int rsd_n_iterations = 3;
 
     // Need to keep the cluster sequence alive after using it
     std::unique_ptr<fastjet::ClusterSequence> cs_ptr;
@@ -151,6 +153,8 @@ class JetSubtractor {
 
     //fastjet::AreaDefinition area_def;
 
+    // R_trim
+    double R_cut = .3;
 
     // constructor
     JetSubtractor(double Rparam_in, double part_eta_max_in):
@@ -179,6 +183,9 @@ class JetSubtractor {
         }
         else if (sub == jet_subtraction::PC_parts) {
             constituents = pc_subtractor.get_pc_particles(*jet, particles);
+        }
+        else if (sub == jet_subtraction::PC_with_cf) {
+            constituents = pc_subtractor.sub_with_cf_constit(*jet, particles);
         }
         else if (sub == jet_subtraction::RSD_mine) {
             fastjet::ClusterSequence reclusterSeq_temp(jet->constituents(), jet_def_recluster);
@@ -221,6 +228,8 @@ class JetSubtractor {
         else if (sub == jet_subtraction::RSD_contrib) {
             *jet = rsd(*jet);
         }
+
+
 
     }
 

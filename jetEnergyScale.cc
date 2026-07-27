@@ -28,37 +28,36 @@ using namespace std;
 
 int main() {
 
-    TString output_file_name = "from event_test";
-    TString output_folder_name = "jetEnergyPlots/";
+    TString output_file_name = "jes_jer";
+    TString output_folder_name = "";
 
-    TString event_file_name = "event_test.root";
-    vector<TString> background_file_names = {"backgrounds14ka.root", "backgrounds14kb.root"};
+    //TString event_file_name = "event_test.root";
+    //vector<TString> background_file_names = {"backgrounds14ka.root", "backgrounds14kb.root"};
+
+    TString event_file_name = "event_Zoltans.root";
+
+    vector<TString> background_file_names = {        
+        "backgrounds2.7m.a.root", 
+        "backgrounds2.7m.b.root",
+        "backgrounds2.7m.c.root",
+        "backgrounds2.7m.d.root",
+        "backgrounds2.7m.e.root",
+        "backgrounds2.7m.f.root" 
+    };
 
     vector<unified_sub_options> all_sub_ops = {
         //unified_sub_options{.name = "Pythia", .embed_in_bg = false},
         unified_sub_options{.name = "Embedded, area sub", .jet_sub = jet_subtraction::Area_pT, .embed_in_bg = true},
         //unified_sub_options{.name = "Embedded", .embed_in_bg = true},
-        //unified_sub_options{.name = "ConSub", .event_sub = event_subtraction::ConSub, .embed_in_bg = true},
-        //unified_sub_options{.name = "SoftKiller", .event_sub = event_subtraction::SoftKill, .embed_in_bg = true},
+        unified_sub_options{.name = "ConSub", .event_sub = event_subtraction::ConSub, .embed_in_bg = true},
+        unified_sub_options{.name = "SoftKiller", .event_sub = event_subtraction::SoftKill, .embed_in_bg = true},
         //unified_sub_options{.name = "My PC", .jet_sub = jet_subtraction::MyPCGM, .embed_in_bg = true},
-        //unified_sub_options{.name = "RSD (mine)", .jet_sub = jet_subtraction::RSD_mine, .embed_in_bg = true}
+        unified_sub_options{.name = "RSD (contrib)", .jet_sub = jet_subtraction::RSD_contrib, .embed_in_bg = true}
     
     };
 
 
     TString notes = "";
-
-    //cout << "Remember that this is pt sub - pt true, NOT divided by pt true" << endl;
-
-    vector<vector<double>> jet_pt_cuts = {
-        {20, 120}, // first cuts is inclusive
-        {20, 40},
-        {40, 60},
-        {60, 80},
-        {80, 100},
-        {100, 120}
-    };
-
 
 
     double Rparam = .5;
@@ -82,16 +81,12 @@ int main() {
 
     TString space = " ";
 
-    vector<vector<TH2F*>> all_jes_plots;
+    vector<TH2F*> jes_plots;
 
     for (int iOp = 0; iOp < all_sub_ops.size(); iOp++) {
-        vector<TH2F*> jes_plots;
+        jes_plots.push_back(new TH2F("jes plot" + space + iOp, "JES for " + all_sub_ops[iOp].name + "; pT_{true}; pT_{sub} - pT_{true} / pT_{true}", jes_nBinsX, jes_xMin, jes_xMax, jes_nBinsY, jes_yMin, jes_yMax));
+        jes_plots[iOp]->SetStats(false);
 
-        for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) {
-            jes_plots.push_back(new TH2F("jes cut" + space + iOp + space + iCut, "JES for " + all_sub_ops[iOp].name + ": " + jet_pt_cuts[iCut][0] + " < Jet p_{T} < " + jet_pt_cuts[iCut][0], jes_nBinsX, jes_xMin, jes_xMax, jes_nBinsY, jes_yMin, jes_yMax));
-        }
-
-        all_jes_plots.push_back(jes_plots);
     }
 
     /*
@@ -175,7 +170,7 @@ int main() {
     int counter = 1000;
 
     // Event loop for events from ROOT file
-    for (int iEvent = 25000; iEvent < numEvents; ++iEvent) {
+    for (int iEvent = 0; iEvent < numEvents; ++iEvent) {
 
         if (iEvent > counter) {
             cout << counter  << " events analyzed from ROOT file" << endl;
@@ -187,7 +182,6 @@ int main() {
 
         // Finding truth level jets
         fastjet::ClusterSequence clustSeq_pythia(event_particles, jet_def_akt);
-        // What should pt min of truth level jets?
         vector<fastjet::PseudoJet> jets_pythia = fastjet::sorted_by_pt(jet_eta_selector(clustSeq_pythia.inclusive_jets()));
 
         // make a copy
@@ -200,13 +194,16 @@ int main() {
 
         // ==============================================
         // Loop through option
-
+        if (debug) cout << "Looping through options" << endl;
         for (int iOp = 0; iOp < all_sub_ops.size(); iOp++) {
 
             unified_sub_options sub_ops = all_sub_ops[iOp];
 
             // Need to make a copy because event_subtractor edits these directly. Different form storeLundNext and r_groomed where a function call ensures a copy is being used
-            vector<fastjet::PseudoJet> particles = all_particles;
+            vector<fastjet::PseudoJet> particles;
+            sub_ops.embed_in_bg? particles = all_particles : particles = event_particles;
+
+          
 
             // Apply event subtractions
             if (sub_ops.event_sub != event_subtraction::null) {
@@ -215,11 +212,11 @@ int main() {
 
             if (particles.empty()) continue;
 
-            if(debug) cout << "Performing jet subtraction" << endl;
+            if(debug) cout << "Clustering jets" << endl;
             vector<fastjet::PseudoJet> jets_embedded;
             if (sub_ops.jet_sub == jet_subtraction::Area_pT) { // Use cluster sequence area, and record rho
                 bge.set_particles(particles);
-                rho = bge.estimate().rho();
+                rho = bge.rho();
                 csa_ptr = std::make_unique<fastjet::ClusterSequenceArea>(particles, jet_def_akt, area_def);
                 jets_embedded = jet_eta_selector(csa_ptr->inclusive_jets());
             }
@@ -228,52 +225,46 @@ int main() {
                 jets_embedded = jet_eta_selector(cs_ptr->inclusive_jets());
             }
 
-            for (fastjet::PseudoJet jet_embedded : jets_embedded) {
-
-                if (jets_pythia.empty()) break; // No more true jets to pair with
-            
-                // Some subtraction processes don't require reclustering
-                if (sub_ops.jet_sub != jet_subtraction::RSD_contrib &&
-                    sub_ops.jet_sub != jet_subtraction::Area_pT) {
-
+            // perform jet subtractions
+            if(debug) cout << "Performing jet subtraction" << endl;
+            if (sub_ops.jet_sub != jet_subtraction::Area_pT) {// Don't need to subtract anything and don't want to recluster if we're doing area-based pT subtraction
+                for (fastjet::PseudoJet& jet_embedded : jets_embedded) {
                     jet_subtractor.subtract_recluster(&jet_embedded, sub_ops.jet_sub, particles);
-                
                 }
-        
-                double pt_sub = jet_embedded.pt();
-                if (sub_ops.jet_sub == jet_subtraction::Area_pT) pt_sub -= rho - csa_ptr->area(jet_embedded);
+            }
 
-                // Need to match subtracted jet geometrically with pythia jet
-                sel.set_reference(jet_embedded);
-                vector<fastjet::PseudoJet> potential_matches = sel(jets_pythia);
+            // match pythia jets with subtracted jets
+            if (debug) cout << "Matching pythia jets with subtracted jet" << endl;
+            for (fastjet::PseudoJet jet_pythia : jets_pythia) {
+
+                sel.set_reference(jet_pythia);
+                vector<fastjet::PseudoJet> potential_matches = sel(jets_embedded);
 
                 double best_delta = .4;
                 double temp_delta;
-                fastjet::PseudoJet closest_match;
-                for (fastjet::PseudoJet potential_match : potential_matches) {
-                    temp_delta = jet_embedded.delta_R(potential_match);
+                fastjet::PseudoJet* closest_match = nullptr;
+                for (fastjet::PseudoJet& potential_match : potential_matches) {
+                    temp_delta = jet_pythia.delta_R(potential_match);
                     if (temp_delta < best_delta) {
                         best_delta = temp_delta;
-                        closest_match = potential_match;
+                        closest_match = &potential_match;
                     }
                 }
 
-                if (closest_match.pz() == 0) break; // If not match was found break because that means there's not enough pythia jets remaining
+                if (closest_match == nullptr) break; // If not match was found break because that means there's not enough pythia jets remaining
 
-                double pt_true = closest_match.pt();
-
+                if (debug) cout << "Getting jet pT" << endl;
+                double pt_true = jet_pythia.pt();
+                double pt_sub = closest_match->pt();
+                if (sub_ops.jet_sub == jet_subtraction::Area_pT) pt_sub -= closest_match->area() * rho;
+                
                 // find cut
-                for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) {
-                    if (pt_true > jet_pt_cuts[iCut][0] && pt_true < jet_pt_cuts[iCut][1]) {
-                        all_jes_plots[iOp][iCut]->Fill(pt_true, (pt_sub - pt_true)/pt_true, met.bin_weight);
+                jes_plots[iOp]->Fill(pt_true, (pt_sub - pt_true)/pt_true, met.bin_weight);
 
-                    }
-                }
 
                 if (leading_jet_only) break; // for leading jet only
 
             } // end jet loop
-
 
         } // end option loop  
 
@@ -293,8 +284,8 @@ int main() {
     }
     */
 
-
-    TCanvas *c1 = new TCanvas("c1", "Canvas", 800, 600);
+    // Usually I do 800, 600. Triying 900, 600 so z-axis label isn't cut off
+    TCanvas *c1 = new TCanvas("c1", "Canvas", 900, 600);
 
 
     // Adding a text information sheet with stats about this generation
@@ -324,48 +315,48 @@ int main() {
     
     for (int iOp = 0; iOp < all_sub_ops.size(); iOp++) {
 
-        for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) {
-
-            /*
-            TGraph* jes = new TGraph();
-            jes->SetTitle("Jet Energy Scale vs pt True:" + space + all_jes_plots[iOp][iCut]->GetTitle() + "; pt True; Jet energy scale");
-            TGraph* jer = new TGraph();
-            jer->SetTitle("Jet Energy Resolution vs pt True" + space + all_jes_plots[iOp][iCut]->GetTitle() + "; pt True; Jet energy resolution");
-            
-            for (int iBin = 1; iBin <= all_jes_plots[iOp][iCut]->GetNbinsX(); ++iBin) {
+        
+        TGraph* jes = new TGraph();
+        jes->SetTitle("Jet Energy Scale vs pt True:" + space + jes_plots[iOp]->GetTitle() + "; pt True; Jet energy scale");
+        TGraph* jer = new TGraph();
+        jer->SetTitle("Jet Energy Resolution vs pt True" + space + jes_plots[iOp]->GetTitle() + "; pt True; Jet energy resolution");
+        
+        for (int iBin = 1; iBin <= jes_plots[iOp]->GetNbinsX(); ++iBin) {
             // Use weight for jes, jer vs pt true? -> Don't think so, because weight was accounted for in creation of 2D sub_vs_true
-            TH1D* slice = all_jes_plots[iOp][iCut]->ProjectionY("slice", iBin, iBin);
+            TH1D* slice = jes_plots[iOp]->ProjectionY("slice", iBin, iBin);
             //if (slice->IsEmpty()) continue;
             // plots point in the middle of the bin
             jes->AddPoint(iBin*jes_xbinWidth + jes_xMin + jes_xbinWidth*.5, slice->GetMean());
             jer->AddPoint(iBin*jes_xbinWidth + jes_xMin + jes_xbinWidth*.5, slice->GetStdDev());
-            }
-            */
-
-            c1->cd();
-            all_jes_plots[iOp][iCut]->Draw("COLZ");
-            if ((iOp == all_sub_ops.size() - 1) && (iCut == jet_pt_cuts.size() - 1)) {
-                c1->Print(output_folder_name + output_file_name+".pdf)","pdf");
-            }
-            else c1->Print(output_folder_name + output_file_name+".pdf","pdf");
-                        c1->Clear();
-
-            /*
-            c1->cd();
-            jes->Draw();
-            c1->Print(output_folder_name + output_file_name+".pdf","pdf");
-            c1->Clear();
-
-            c1->cd();
-            jer->Draw();
-            if ((iOp == all_sub_ops.size() - 1) && (iCut == jet_pt_cuts.size() - 1)) {
-                c1->Print(output_folder_name + output_file_name+".pdf)","pdf");
-            }
-            else c1->Print(output_folder_name + output_file_name+".pdf","pdf");
-            c1->Clear();
-            */
-
         }
+        
+
+        c1->cd();
+        jes_plots[iOp]->Draw("COLZ");
+        /*
+        if ((iOp == all_sub_ops.size() - 1)) {
+            c1->Print(output_folder_name + output_file_name+".pdf)","pdf");
+        }
+        */
+        c1->Print(output_folder_name + output_file_name+".pdf","pdf");
+                    c1->Clear();
+
+        
+        c1->cd();
+        jes->Draw();
+        c1->Print(output_folder_name + output_file_name+".pdf","pdf");
+        c1->Clear();
+
+        c1->cd();
+        jer->Draw();
+        if (iOp == all_sub_ops.size() - 1) {
+            c1->Print(output_folder_name + output_file_name+".pdf)","pdf");
+        }
+        else c1->Print(output_folder_name + output_file_name+".pdf","pdf");
+        c1->Clear();
+        
+
+        
 
 
 

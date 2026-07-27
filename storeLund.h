@@ -26,7 +26,7 @@ class LundGroomer {
     double jet_eta_max;
     double Rparam;
     bool leading_jet_only;
-    bool debug = false;
+    bool debug = true;
 
     fastjet::JetDefinition jetDef_akt; // for jet identification
     fastjet::JetDefinition jetDef_ca_recluster; // for reclustering the antikt-identified jets to make Lund plane
@@ -178,7 +178,7 @@ class LundGroomer {
                 cout << "Jet num " << jet_counter << endl;
             }
 
-            if (ops.jet_sub = "pT_rho_sub") jet_area = jet.area(); // Must get area before reclustering
+            if (ops.jet_sub == "pT_rho_sub") jet_area = jet.area(); // Must get area before reclustering
 
             vector<fastjet::PseudoJet> constituents;
             
@@ -200,7 +200,11 @@ class LundGroomer {
                 fastjet::PseudoJet reclustered_jet = sorted_by_pt(reclusterSeq_temp.inclusive_jets())[0];
                 constituents = recursive_soft_drop_constit(reclustered_jet, Rparam);
             }
-            else if ((ops.jet_sub != "pT_rho_sub") && (ops.jet_sub != "Filter") && (ops.jet_sub != "Prune") && (ops.jet_sub != "RSD_contrib")) {
+            else if (ops.jet_sub == "RSD_contrib") {
+                jet = rsd(jet);
+                constituents = jet.constituents();
+            }
+            else if ((ops.jet_sub != "pT_rho_sub") && (ops.jet_sub != "Filter") && (ops.jet_sub != "Prune")) {
                 cout << "Warning: Unknown jet subtraction request. No subtraction will be performed" << endl;
                 constituents = jet.constituents();
             }
@@ -225,9 +229,7 @@ class LundGroomer {
             else if (ops.jet_sub == "Prune") {
                 jet = pruner(jet);
             }
-            else if (ops.jet_sub == "RSD_contrib") {
-                jet = rsd(jet);
-            }
+           
 
             double jet_pt = jet.pt();
             if (ops.jet_sub == "pT_rho_sub") {
@@ -238,7 +240,7 @@ class LundGroomer {
             
 
             if (ops.weighted_jet_pt_hist != nullptr) {
-                if(debug) cout << "Filling weighted jet pt hist: Jet pt =  " << jet.pt() << ", bin weight = " << ops.bin_weight << endl;
+                if(debug) cout << "Filling weighted jet pt hist: Jet pt =  " << jet_pt << ", bin weight = " << ops.bin_weight << endl;
                 ops.weighted_jet_pt_hist->Fill(jet_pt, ops.bin_weight);
             }
 
