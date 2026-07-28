@@ -19,14 +19,21 @@ using namespace std;
 
 int main() {
 
+    TString overlay_output_name = "lund overlay, no grooming, best";
+
+
     //vector<TString> lund_file_names = {"Pythia Lund, 2.3mil.root"};
     vector<TString> input_files = {
         // Not groomed
         
-        "Pythia, from event_Zoltans",
-        "Embedded, from event_Zoltans",
-        "My PC, from event_Zoltans",
-        "RSD (mine), from event_Zoltans"
+        //"Pythia, from event_Zoltans",
+        //"Embedded, from event_Zoltans",
+        //"My PC, from event_Zoltans",
+        //"RSD (mine), from event_Zoltans",
+        //"ConSub, from event_Zoltans",
+        //"Embedded, Area Sub, from event_Zoltans",
+        //"SoftKill, from event_Zoltans"
+
         
         
         // GROOMED with SD (mine, all)
@@ -42,13 +49,14 @@ int main() {
         
 
         // From event_test, on my pc
-        /*
+        
         "Pythia, SD (mine, all), from event_test",
         "Embedded, SD (mine, all), from event_test",
         "Embedded, Area Sub, from event_test",
         "ConSub, SD (mine, all), from event_test", 
         "My PC Geometric Sub, SD (mine, all), from event_test"
-        */
+        //"MyPC, with cf, from event_test"
+        
     }; 
     // dont' include ".root", that's done automatically
     //"Pythia, SD (mine, all), from event_Zoltans"
@@ -77,7 +85,7 @@ int main() {
 
     // cuts along log(kt) and log(R0/R)
     vector<double> kt_cuts = {-2, -1, 0, 2}; // Lines of ln(kt) = x along which to take cuts
-    vector<double> delta_cuts = {.25, .5, 1, 1.5, 2};
+    vector<double> delta_cuts = {.25, .5, 1, 1.5};
     int cut_width = 2; // The number of adjecent, parallel rows or columns to include in a cut
 
     
@@ -240,8 +248,6 @@ int main() {
     //=========================================================
     // Do kt and R cuts to compare different lunds, save to lund overlay.pdf
     //=========================================================
-    TString overlay_output_name = "lund overlay, no grooming";
-
 
     TH2F *reference_lund = (TH2F*)all_lunds[0][0]->Clone(); // First cut of first file is used as reference
     reference_lund->SetStats(false);

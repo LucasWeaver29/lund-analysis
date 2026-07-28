@@ -356,7 +356,7 @@ class DeltaGetter2 {
 int main() {
     
     TString output_folder_name = "";
-    TString output_file_name = "r_groomed_fixedPointers";
+    TString output_file_name = "r_groomed";
     //TString root_output_name = output_name;
 
     vector<unified_sub_options> all_sub_ops = {
@@ -369,10 +369,10 @@ int main() {
         unified_sub_options{.name = "RSD (mine)", .jet_sub = jet_subtraction::RSD_mine, .embed_in_bg = true}
     };
 
-    TString event_file_name = "event_test.root";
-    vector<TString> background_file_names = {"backgrounds14ka.root", "backgrounds14kb.root"};
+    //TString event_file_name = "event_test.root";
+    //vector<TString> background_file_names = {"backgrounds14ka.root", "backgrounds14kb.root"};
 
-    /*
+    
     TString event_file_name = "event_Zoltans.root";
     vector<TString> background_file_names = {
         
@@ -386,7 +386,7 @@ int main() {
         
         
     };
-    */
+    
 
     // For jet pt cuts of the lund plane
     vector<vector<double>> jet_pt_cuts = {

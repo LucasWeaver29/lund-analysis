@@ -2,7 +2,7 @@
 #define STORELUNDNEW_H
 
 //#include "backSubTools.h"
-#include "unifiedSubtractors"
+#include "unifiedSubtractors.h"
 
 
 struct lund_kin_vars {
@@ -84,7 +84,7 @@ class LundGroomer {
             event_subtractor.subtract(&particles, ops.event_sub);
         }
 
-        if (particles.empty()) return all_vars;
+        if (particles.empty()) return all_kinematic_vars;
 
 
         if (debug) cout << "sotreLundNew LundGroomer: declustering particles" << endl;
@@ -95,12 +95,17 @@ class LundGroomer {
             csa_ptr = std::make_unique<fastjet::ClusterSequenceArea>(particles, jetDef_akt, area_def);
             jets = jet_eta_selector(csa_ptr->inclusive_jets());
         }
+        else if (ops.jet_sub == jet_subtraction::PC_with_cf) {
+            csa_ptr = std::make_unique<fastjet::ClusterSequenceArea>(particles, jetDef_akt, area_def);
+            jets = jet_eta_selector(csa_ptr->inclusive_jets());
+        }
         else {
             cs_ptr = std::make_unique<fastjet::ClusterSequence>(particles, jetDef_akt);
             jets = jet_eta_selector(cs_ptr->inclusive_jets());
         }
 
 
+        int jet_counter = -1;
 
         if (debug) cout << "Looping through akt jets" << endl;
         for (fastjet::PseudoJet& jet : jets) {  
@@ -115,7 +120,7 @@ class LundGroomer {
             jet_subtractor.subtract_recluster(&jet, ops.jet_sub, particles);
 
             double jet_pt = jet.pt(); // Need to take pt after any subtractions have been applied. If no subtractions are applied, pt should be the same.
-            if (sub_ops.jet_sub == jet_subtraction::Area_pT) {
+            if (ops.jet_sub == jet_subtraction::Area_pT) {
                 jet_pt -= jet_area * rho;
             }
 

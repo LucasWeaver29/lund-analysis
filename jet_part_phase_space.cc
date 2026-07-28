@@ -28,6 +28,8 @@ int main() {
     double part_eta_max = .9;
     double jet_eta_max = .9;
 
+    double part_pt_cut = 2;
+
     vector<vector<double>> jet_pt_cuts = {
         {20, 120},
         {20, 40},
@@ -95,10 +97,13 @@ int main() {
 
         move (bg_particles.begin(), bg_particles.end(), back_inserter(event_particles));
         
+
+        /*
         double pt_thresh = 0;
         vector<fastjet::PseudoJet> soft_killed_event;
         soft_killer.apply(event_particles, soft_killed_event, pt_thresh);
         event_particles = soft_killed_event;
+        */
 
         fastjet::ClusterSequence clust_seq(event_particles, jet_def_akt);
         vector<fastjet::PseudoJet> jets = jet_eta_selector(clust_seq.inclusive_jets());
@@ -106,6 +111,8 @@ int main() {
         for (fastjet::PseudoJet jet : jets) {
 
             for (fastjet::PseudoJet p : jet.constituents()) {
+
+                if (p.pt() < part_pt_cut) continue;
 
                 // find i cut based on jet pt
                 for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) {
@@ -139,7 +146,9 @@ int main() {
     TString line5 = "Particle eta max: " + to_string_round(part_eta_max);
     TString line6 = "Jet eta max: " + to_string_round(jet_eta_max);
 
-    vector<TString> lines = {title, line1, line2, line3, line4, line5, line6};
+    TString line7 = "Initial part pT cut : " + to_string_round(part_pt_cut);
+
+    vector<TString> lines = {title, line1, line2, line3, line4, line5, line6, line7};
 
     c1->cd();
     for (int iLine = 0; iLine < lines.size(); ++iLine) {
@@ -150,6 +159,8 @@ int main() {
     
     c1->Print(output_file_name + ".pdf(","pdf");
     c1->Clear();
+
+    c1->SetLogz(1);
 
     for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) {
 

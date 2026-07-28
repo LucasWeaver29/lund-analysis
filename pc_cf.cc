@@ -1,5 +1,5 @@
 //#include "fastjet/UserInfo.hh"
-#include "pythia8/Pythia.h"
+//#include "pythia8/Pythia.h"
 
 #include "fastjet/PseudoJet.hh"
 #include "fastjet/ClusterSequence.hh"
@@ -15,7 +15,7 @@
 
 #include "simpleTools.h"
 
-using namespace Pythia8;
+using namespace std;
 
 // From ecosia
 void AddVerticalLine(TH1F* hist, double xValue) {
@@ -36,17 +36,17 @@ void AddTextNote(TH1F* hist, double xValue, const char* text, Color_t color = kB
 
 int main() {
 
-    TString eventFileName = "events9k.root";
-    TString backgroundFileName = "thermalBackgrounds9000.root";
+    TString eventFileName = "event_test.root";
+    vector<TString> backgroundFileNames = {"backgrounds14ka.root", "backgrounds14kb.root"};
 
-    TString output_file_name = "jet vs pc tracks, 60+";
+    TString output_file_name = "jet vs pc tracks";
 
     bool debug = false;
 
     if (debug) cout << "Declaring my_event_tree" << endl;
     my_event_tree met(eventFileName);
     if (debug) cout << "Declaring my_background_tree" << endl;
-    my_background_tree mbt(backgroundFileName);
+    my_background_trees mbt(backgroundFileNames);
 
 
     double Rparam = .4;
@@ -56,7 +56,7 @@ int main() {
 
     double part_pt_min = .15;
 
-    double jet_pt_min = 60;
+    double jet_pt_min = 0;
     double jet_pt_max = 500;
 
     bool leading_jet_only = false;
@@ -77,7 +77,6 @@ int main() {
     TH1F* jet_tracks_pt = new TH1F("jet_tracks_pt", "pT of Background Particles in Jet Cone; Track pT; #frac{1}{N_jets} dpT", pt_numBins, pt_xMin, pt_xMax);
     TH1F* pc_tracks_pt = new TH1F("pc_tracks_pt", "pT of Background Particles in PC Cone; Track pT; #frac{1}{N_jets} dpT", pt_numBins, pt_xMin, pt_xMax);
     TH1F* pc_tracks_pt_area_corrected = new TH1F("pc_tracks_pt_area_corrected", "pT of Background Particles in PC, area corrected; Track pT; #frac{#Area_jet}{#Area_PC} #frac{1}{N_jets} d#p_T", pt_numBins, pt_xMin, pt_xMax);
-
     
     int area_numBins = 50;
     double area_xMin = 0;
@@ -161,11 +160,11 @@ int main() {
             //temp_jet_tracks_pt->Reset("ICESM");
             //temp_pc_tracks_pt->Reset("ICESM");
 
-            akt_jet_area->Fill(jet.area());
+            akt_jet_area->Fill(jet.area(), met.bin_weight);
             
             for (fastjet::PseudoJet &particle : jet.constituents()) {
                 if (particle.user_index()==1) {
-                    jet_tracks_pt->Fill(particle.pt());
+                    jet_tracks_pt->Fill(particle.pt(), met.bin_weight);
                     //temp_jet_tracks_pt->Fill(particle.pt());
                 }
             }
@@ -182,9 +181,9 @@ int main() {
                 vector<fastjet::PseudoJet> pc_particles = r_selector(event_particles);
                 for (fastjet::PseudoJet &particle : pc_particles) {
                     if (particle.user_index() == 1) { // Factors of .5 since we're doing two perpendicular cones
-                        pc_tracks_pt->Fill(particle.pt(), .5);   
+                        pc_tracks_pt->Fill(particle.pt(), met.bin_weight * .5);   
                         //temp_pc_tracks_pt->Fill(particle.pt(), .5);
-                        pc_tracks_pt_area_corrected->Fill(particle.pt(), (jet.area() / cone_area) * .5);      
+                        pc_tracks_pt_area_corrected->Fill(particle.pt(), met.bin_weight * (jet.area() / cone_area) * .5);      
                     }
                 }
             }
@@ -205,11 +204,22 @@ int main() {
         //track_pt_ratio_uncorrected->AddPoint(pt_step * iBin, pc_tracks_pt->GetBinContent(iBin) / jet_tracks_pt->GetBinContent(iBin));
     }
 
+    TH1F* correction_factors_hist = new TH1F("correction_facotrs_hist", "PC Correction Factors per Track pT Bin; track pT; Correction Factor", pt_numBins, pt_xMin, pt_xMax);
     for (int iBin = 1; iBin <= pt_numBins; iBin++) {
         if (pc_tracks_pt_area_corrected->GetBinContent(iBin) == 0 || jet_tracks_pt->GetBinContent(iBin) == 0) continue;    
         //track_pt_ratio_area_corrected->AddPoint(pt_step * iBin, pc_tracks_pt_area_corrected->GetBinContent(iBin) / jet_tracks_pt->GetBinContent(iBin));
         cfs->AddPoint(pt_step * iBin, jet_tracks_pt->GetBinContent(iBin) / pc_tracks_pt_area_corrected->GetBinContent(iBin));
+        correction_factors_hist->Fill(pt_step * iBin, jet_tracks_pt->GetBinContent(iBin) / pc_tracks_pt_area_corrected->GetBinContent(iBin));
     }
+
+    // Store correction factor hist for later use
+    TFile cf_output_file("PC_Correction_Factors.root", "RECREATE");
+    TTree* pc_cf_tree = new TTree("pc_cf_tree", "PC Correction Factors Tree");
+    pc_cf_tree->Branch("cf_hist", &correction_factors_hist);
+    pc_cf_tree->Fill();
+    pc_cf_tree->Write();
+    cf_output_file.Close();
+
 
 
     //=====================================================================================================
@@ -223,7 +233,7 @@ int main() {
     TString title = "Perpendicular Cone Correction Factor Analysis";
     TString line1 = "Number of events: " + to_string(numEvents);
     TString line2 = "Events from: " + eventFileName;
-    TString line3 = "Backgrounds from: " + backgroundFileName;
+    TString line3 = "Backgrounds from: " + print_vec(backgroundFileNames);
     TString line4 = "Leading Jet Only: " + bool2Str(leading_jet_only);
 
     TString line5 = "Jet pT min: " + to_string((int)jet_pt_min);
@@ -303,6 +313,7 @@ int main() {
 
     // Now, we can go back through all the events, and look at what correction factor would account for upward background fluctuation recieved by the leading jet
     
-    
+    met.close_file();
+    mbt.close_file();
 
 }
