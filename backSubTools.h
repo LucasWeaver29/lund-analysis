@@ -328,6 +328,7 @@ class my_pc_subtractor {
     // Same as above, but takes particles from both pcs. Halves the kt of each ghost to account for the second cone. Applies correction factors
     vector<fastjet::PseudoJet> sub_with_cf_constit(const fastjet::PseudoJet& jet, vector<fastjet::PseudoJet> particles) {        
 
+        //cout << "Jet area from sub_with_cf: " << jet.area() << endl;
 
         fastjet::PseudoJet pc_axis1, pc_axis2;
 
@@ -335,26 +336,43 @@ class my_pc_subtractor {
         pc_axis2.reset_PtYPhiM(0,jet.eta(), fmod(jet.phi() - M_PI/2 , 2*M_PI));
 
             
-        // selector to find all particles with Rparam of leading jet
+        // selector to find all particles with Rparam of pc axis
         //fastjet::Selector r_selector = fastjet::SelectorCircle(Rparam);
+        vector<fastjet::PseudoJet> axes = {pc_axis1, pc_axis2};
+        vector<fastjet::PseudoJet> all_pc_tracks;
+        for (int i_axis = 0; i_axis < axes.size(); i_axis++) {
+            r_selector.set_reference(axes[i_axis]);
+            vector<fastjet::PseudoJet> pc_tracks = r_selector(particles);
+            for (fastjet::PseudoJet& track : pc_tracks) { // make a set of "ghost particles" by shifting pc tracks into original jet cone
+                double ghost_pt = track.pt() * (.5) * (jet.area() / (cone_area)) * cf_hist->GetBinContent(cf_hist->FindBin(track.pt()));
+                //double ghost_pt = track.pt() * (.5) * cf_hist->GetBinContent(cf_hist->FindBin(track.pt())); // Not using area correction here
+                track.reset_PtYPhiM(ghost_pt, track.eta(), fmod(((i_axis == 0)? track.phi() - M_PI/2 : track.phi() + M_PI/2), 2*M_PI), track.m()); 
+            }
+            move(pc_tracks.begin(), pc_tracks.end(), back_inserter(all_pc_tracks));
+        }
+        /*
         r_selector.set_reference(pc_axis1);
         vector<fastjet::PseudoJet> pc1_tracks = r_selector(particles);
         for (fastjet::PseudoJet& track : pc1_tracks) { // make a set of "ghost particles" by shifting pc tracks into original jet cone
-            double ghost_pt = track.pt() * (.5) * (jet.area() / (cone_area)) * cf_hist->GetBinContent(cf_hist->FindBin(track.pt()));
-            track.reset_PtYPhiM(track.pt() / 2, track.eta(), fmod(track.phi() - M_PI/2 , 2*M_PI), track.m()); 
+            //double ghost_pt = track.pt() * (.5) * (jet.area() / (cone_area)) * cf_hist->GetBinContent(cf_hist->FindBin(track.pt()));
+            double ghost_pt = track.pt() * (.5) * cf_hist->GetBinContent(cf_hist->FindBin(track.pt()));
+            track.reset_PtYPhiM(ghost_pt, track.eta(), fmod(track.phi() - M_PI/2 , 2*M_PI), track.m()); 
         }
 
         r_selector.set_reference(pc_axis2);
         vector<fastjet::PseudoJet> pc2_tracks = r_selector(particles);
         for (fastjet::PseudoJet& track : pc2_tracks) { // make a set of "ghost particles" by shifting pc tracks into original jet cone
             double ghost_pt = track.pt() * (.5) * (jet.area() / (cone_area)) * cf_hist->GetBinContent(cf_hist->FindBin(track.pt()));
-            track.reset_PtYPhiM(track.pt() / 2, track.eta(), fmod(track.phi() + M_PI/2 , 2*M_PI), track.m());
+            // double ghost_pt = track.pt() * (.5) * (jet.area() / (cone_area)) * cf_hist->GetBinContent(cf_hist->FindBin(track.pt()));
+
+            track.reset_PtYPhiM(ghost_pt / 2, track.eta(), fmod(track.phi() + M_PI/2 , 2*M_PI), track.m());
         }
+        
 
         vector<fastjet::PseudoJet> all_pc_tracks;
         move(pc1_tracks.begin(), pc1_tracks.end(), back_inserter(all_pc_tracks));
         move(pc2_tracks.begin(), pc2_tracks.end(), back_inserter(all_pc_tracks));
-
+        */
 
 
         vector<fastjet::PseudoJet> constituents = jet.constituents();
@@ -377,7 +395,7 @@ class my_pc_subtractor {
 
                 if (i_match == -1) break; // move to next track
                 
-                if (constituents[i_match].pt() - track.pt() >= 0) {
+                if (constituents[i_match].pt() >= track.pt()) {
                     constituents[i_match] -= track;
                     break;
                 }

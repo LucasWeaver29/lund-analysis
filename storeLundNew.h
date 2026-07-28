@@ -68,6 +68,7 @@ class LundGroomer {
 
         jet_eta_selector = fastjet::SelectorAbsRapMax(jet_eta_max_in);
 
+        leading_jet_only = leading_jet_only_in;
         
         }
 
@@ -86,18 +87,17 @@ class LundGroomer {
 
         if (particles.empty()) return all_kinematic_vars;
 
-
-        if (debug) cout << "sotreLundNew LundGroomer: declustering particles" << endl;
+        if (debug) cout << "storeLundNew LundGroomer: declustering particles" << endl;
         vector<fastjet::PseudoJet> jets;
         if (ops.jet_sub == jet_subtraction::Area_pT) { // If need area subtraction, need to record rho and cluster with area.
             bge.set_particles(particles);
-            rho = bge.estimate().rho();
+            rho = bge.rho();
             csa_ptr = std::make_unique<fastjet::ClusterSequenceArea>(particles, jetDef_akt, area_def);
             jets = jet_eta_selector(csa_ptr->inclusive_jets());
         }
         else if (ops.jet_sub == jet_subtraction::PC_with_cf) {
             csa_ptr = std::make_unique<fastjet::ClusterSequenceArea>(particles, jetDef_akt, area_def);
-            jets = jet_eta_selector(csa_ptr->inclusive_jets());
+            jets = fastjet::sorted_by_pt(jet_eta_selector(csa_ptr->inclusive_jets()));
         }
         else {
             cs_ptr = std::make_unique<fastjet::ClusterSequence>(particles, jetDef_akt);

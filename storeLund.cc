@@ -13,7 +13,7 @@
 #include "TLatex.h"
 
 #include "eventData.h"
-#include "storeLund.h"
+#include "storeLundNew.h"
 
 using namespace std;
 
@@ -23,31 +23,33 @@ int main() {
     //TString output_file_name = "9k, groomed";
     //TString output_folder = "LundPlanes/LundRootFiles";
 
+
     cout << "Make sure you have created the needed subfolder!" << endl;
-    cout << "Note that storeLund.h is currently using cluster sequence area!" << endl;
 
     TString notes = "";
     //"z_cut = .2, beta = 3";
 
     
-    bg_sub_options lund_ops = bg_sub_options{.name = "Embedded, Area Sub, from event_Zoltans", .jet_sub = "pT_rho_sub"};
-        
+    //unified_sub_options lund_ops = unified_sub_options{.name = "MyPC, with cf, SD (mine, all), from event_test", .jet_sub = jet_subtraction::PC_with_cf, .groom_op = groom_option::SD_mine_all};
+    unified_sub_options lund_ops = unified_sub_options{.name = "ConSub, sel_max_pt, from event_test", .event_sub = event_subtraction::ConSub, .groom_op = groom_option::null};
+
     bool embed_in_bg = true;
 
-    TString eventFileName = "event_Zoltans.root";
-    //TString eventFileName = "event_test.root";
+    //TString eventFileName = "event_Zoltans.root";
+    
+    TString eventFileName = "event_test.root";
 
     vector<TString> backgroundFileNames = {
-        //"backgrounds14ka.root",
-        //"backgrounds14kb.root"
-        
+        "backgrounds14ka.root",
+        "backgrounds14kb.root"
+        /*
         "backgrounds2.7m.a.root", 
         "backgrounds2.7m.b.root",
         "backgrounds2.7m.c.root",
         "backgrounds2.7m.d.root",
         "backgrounds2.7m.e.root",
         "backgrounds2.7m.f.root"
-        
+        */
         
     };
     //"thermalBackgrounds9000,etaMax=2.root";
@@ -97,7 +99,7 @@ int main() {
 
 
     // Set up fastjet analysis
-    LundGroomer lund_groomer(0, 300, leading_jet_only, Rparam, jet_eta_max, part_eta_max); // 0, 400 for no jet pt cut
+    LundGroomer lund_groomer(Rparam, jet_eta_max, part_eta_max, leading_jet_only); 
     
     // =======================================================================
 
@@ -176,6 +178,7 @@ int main() {
 
     met.close_file();
     mbt.close_file();
+    lund_groomer.jet_subtractor.pc_subtractor.close_cf_file();
 
 
 
@@ -202,6 +205,7 @@ int main() {
     }
     
     c1->Print(lund_ops.name + "-Data_card.pdf","pdf");
+
 
 
 
