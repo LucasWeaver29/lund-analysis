@@ -2,6 +2,8 @@
 #define UNIFIEDSUBTRACTORS_H
 
 #include "backSubTools.h"
+#include "fastjet/Selector.hh"
+
 
 using namespace std;
 
@@ -59,9 +61,10 @@ class EventSubtractor {
 
     bool debug = false;
 
-    // Jet by jet constituent subtraction
+    // event wide constituent subtraction
     fastjet::GridMedianBackgroundEstimator bg_estimator; // GridMedianBackgroundEstimator is faster than JetMedianBackgroundEstimator and "performs equally well in nearly all cases"
     fastjet::contrib::ConstituentSubtractor constituent_subtractor;
+    fastjet::Selector sel_max_pt = fastjet::SelectorPtMax(15); // Only particles below a certain pt are included in the subtraction
 
     // SoftKiller
     fastjet::contrib::SoftKiller soft_killer;
@@ -78,7 +81,10 @@ class EventSubtractor {
         constituent_subtractor.set_distance_type(fastjet::contrib::ConstituentSubtractor::deltaR);
         constituent_subtractor.set_max_distance(0.3);  // R_max for ghost-particle pairing
         constituent_subtractor.set_max_eta(part_eta_max_in); // These two are for whole-event mode
+        constituent_subtractor.set_particle_selector(&sel_max_pt);
+        
         constituent_subtractor.initialize(); //
+
     }
 
 
@@ -87,8 +93,6 @@ class EventSubtractor {
         
         if (sub == event_subtraction::ConSub) {
             bg_estimator.set_particles(*particles);
-            //vector<fastjet::PseudoJet> temp_particles = constituent_subtractor.subtract_event(*particles);
-            //*particles = temp_particles;
             *particles = constituent_subtractor.subtract_event(*particles);
             if (particles->empty() && debug) cout << "No remaining particles after contrib constituent subtraction" << endl;
         }
@@ -185,7 +189,7 @@ class JetSubtractor {
             constituents = pc_subtractor.get_pc_particles(*jet, particles);
         }
         else if (sub == jet_subtraction::PC_with_cf) {
-            constituents = pc_subtractor.sub_with_cf_constit(*jet, particles);
+            constituents = pc_subtractor.sub_with_cf_constit(*jet, particles); 
         }
         else if (sub == jet_subtraction::RSD_mine) {
             fastjet::ClusterSequence reclusterSeq_temp(jet->constituents(), jet_def_recluster);

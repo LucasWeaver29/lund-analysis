@@ -19,7 +19,7 @@ using namespace std;
 
 int main() {
 
-    TString overlay_output_name = "lund overlay, no grooming, best";
+    TString overlay_output_name = "lund overlay, groomed, from event_test";
 
 
     //vector<TString> lund_file_names = {"Pythia Lund, 2.3mil.root"};
@@ -54,8 +54,12 @@ int main() {
         "Embedded, SD (mine, all), from event_test",
         "Embedded, Area Sub, from event_test",
         "ConSub, SD (mine, all), from event_test", 
-        "My PC Geometric Sub, SD (mine, all), from event_test"
+        "My PC Geometric Sub, SD (mine, all), from event_test",
         //"MyPC, with cf, from event_test"
+        "MyPC, with cf, SD (mine, all), from event_test",
+        //ConSub, rho 1.1, SD (mine, all) from event_test"
+        //"ConSub, rho 1.1, SD (mine, all) from event_test",
+        "ConSub, sel_max_pt, from event_test"
         
     }; 
     // dont' include ".root", that's done automatically
@@ -66,7 +70,7 @@ int main() {
     vector<TString> file_short_names = {};
     for (TString name : input_files) {
         TString short_name = name;
-        file_short_names.push_back(short_name.ReplaceAll(", from event_Zoltans", ""));
+        file_short_names.push_back(short_name.ReplaceAll(", from event_test", ""));
     }
 
     TString output_folder = "LundPlanes";
