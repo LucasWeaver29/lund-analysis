@@ -17,22 +17,27 @@
 using namespace std;
 
 
+
 int main() {
 
-    TString overlay_output_name = "lund overlay, groomed, from event_test";
+    TString overlay_output_name = "lund overlay, no grooming, best";
+    //TString overlay_output_name = "delete";
 
+    bool apply_soft_drop = true;
 
     //vector<TString> lund_file_names = {"Pythia Lund, 2.3mil.root"};
     vector<TString> input_files = {
         // Not groomed
         
-        //"Pythia, from event_Zoltans",
+        "Pythia, from event_Zoltans",
+        "Embedded, Area Sub, from event_Zoltans",
         //"Embedded, from event_Zoltans",
         //"My PC, from event_Zoltans",
-        //"RSD (mine), from event_Zoltans",
-        //"ConSub, from event_Zoltans",
-        //"Embedded, Area Sub, from event_Zoltans",
-        //"SoftKill, from event_Zoltans"
+        //"RSD (mine), from event_Zoltans", // RSD (mine) did not work
+        "ConSub, from event_Zoltans",
+        "SoftKill, from event_Zoltans",
+        //"RSD (contribs), from event_Zoltans"
+        
 
         
         
@@ -49,29 +54,34 @@ int main() {
         
 
         // From event_test, on my pc
-        
+        /*
         "Pythia, SD (mine, all), from event_test",
+        
         "Embedded, SD (mine, all), from event_test",
         "Embedded, Area Sub, from event_test",
-        "ConSub, SD (mine, all), from event_test", 
-        "My PC Geometric Sub, SD (mine, all), from event_test",
+        "ConSub, SD (mine, all), from event_test"
+        //"My PC Geometric Sub, SD (mine, all), from event_test",
         //"MyPC, with cf, from event_test"
-        "MyPC, with cf, SD (mine, all), from event_test",
+        //"MyPC, with cf, SD (mine, all), from event_test",
         //ConSub, rho 1.1, SD (mine, all) from event_test"
         //"ConSub, rho 1.1, SD (mine, all) from event_test",
-        "ConSub, sel_max_pt, from event_test"
-        
+        //"ConSub, sel_max_pt, from event_test"
+        */
     }; 
     // dont' include ".root", that's done automatically
     //"Pythia, SD (mine, all), from event_Zoltans"
     //TString input_files_folder = "LundPlanes/event_Zoltans/rootFiles/";
     // The first lund plane cut of the first file will be used as the reference
 
+    vector<TString> file_short_names = {"True", "Embedded", "Constituent Subtraction", "SoftKiller"};
+
+    /*
     vector<TString> file_short_names = {};
     for (TString name : input_files) {
         TString short_name = name;
-        file_short_names.push_back(short_name.ReplaceAll(", from event_test", ""));
+        file_short_names.push_back(short_name.ReplaceAll(", from event_Zoltans", ""));
     }
+    */
 
     TString output_folder = "LundPlanes";
 
@@ -94,9 +104,11 @@ int main() {
 
     
     // For labeling lund plane
-    TString lund_xAxis =  "ln((R0/delta)";
-    TString lund_yAxis = "ln(kt)";
-    
+    TString lund_xAxis =  "ln(R/#Delta R)";
+    TString lund_yAxis = "ln(k_{t}/GeV)";
+    TString lund_zAxis = "#frac{1}{N_{jets}}  #frac{d^{2} N_{emissions}}{ d" + lund_xAxis + " d" + lund_yAxis + "}";
+    TString cut_yAxis = "#frac{1}{N_{jets}} #frac{d N_{emissions}}{ d" + lund_xAxis + " d" + lund_yAxis + "}";
+
     double lund_xMin = 0;
     double lund_xMax = 5;
     int lund_nBinsX = 50;
@@ -172,8 +184,10 @@ int main() {
         
         if(debug) cout << "Adding TH2Fs to jet_pt_cuts" << endl;
         for (int iCut = 0; iCut < jet_pt_cuts.size(); iCut++) {
-            TH2F* l = new TH2F(input_file + "lund_cut" + iCut, jet_pt_cuts[iCut][0] + space + "< Jet p_{T} < " + jet_pt_cuts[iCut][1] + ";" + lund_xAxis + ";" + lund_yAxis, lund_nBinsX, lund_xMin, lund_xMax, lund_nBinsY, lund_yMin, lund_yMax);
+            TH2F* l = new TH2F(input_file + "lund_cut" + iCut, jet_pt_cuts[iCut][0] + space + "< #it{p}_{T, jet} < " + jet_pt_cuts[iCut][1] + " GeV/#it{c};" + lund_xAxis + ";" + lund_yAxis, lund_nBinsX, lund_xMin, lund_xMax, lund_nBinsY, lund_yMin, lund_yMax);
             l->SetDirectory(0);
+            l->SetStats(false);
+            //l->GetZaxis()->SetTitle(lund_zAxis); Gets cut off
             lunds.push_back(l);
         }
 
@@ -288,7 +302,7 @@ int main() {
         for (int i_kt = 0; i_kt < kt_cuts.size(); i_kt++) { 
             if(debug) cout << "Beginning kt cut " << i_kt << endl;
 
-            TLegend *legend = new TLegend(.1,.7,.28,.9);
+            TLegend *legend = new TLegend(.1,.7,.3,.9);
 
             c1->cd();
 
@@ -309,14 +323,22 @@ int main() {
                 //display_yMin = min(display_yMin, kt_cut->GetMinimum());
 
                 if (iFile==0) {
-                    kt_cut->SetTitle(all_lunds[iFile][i_pTCut]->GetTitle() + space + ": ln(kt) =" + space + kt_cuts[i_kt] + "; ln(R0/R); weighted counts");
+                    kt_cut->SetTitle(all_lunds[iFile][i_pTCut]->GetTitle() + space + ": " + lund_yAxis + " = " + kt_cuts[i_kt] + ";" + lund_xAxis + ";" + cut_yAxis);
                     first_hist = kt_cut;
-                    kt_cut->Draw("HIST" "PLC");
+
+                    kt_cut->SetLineColor(iFile + 1);
+                    //kt_cut->SetLineColor(kRed); // to make first one red
+                    kt_cut->Draw("HIST");
+                    //kt_cut->Draw("HIST" "PLC");
+
                     kt_cut->SetStats(false); // no stat box
 
                 }
-                else kt_cut->Draw("HIST" "SAME" "PLC");
-            
+                else {
+                    kt_cut->SetLineColor(iFile + 1);
+                    kt_cut->Draw("HIST" "SAME");
+                    // kt_cut->Draw("HIST" "SAME");
+                }
                 legend->AddEntry(kt_cut, file_short_names[iFile], "l");
 
             }
@@ -325,7 +347,7 @@ int main() {
             c1->Update();
 
             // Add the reference
-            TPad* pad = new TPad("pad", "pad", .8, .75, .95, .95);
+            TPad* pad = new TPad("pad", "pad", .75, .65, 1, .93);
             pad->Draw();
             pad->cd(); // Switch to smaller pad
             TH2F* ref_copy = (TH2F*)all_lunds[0][i_pTCut]->Clone();
@@ -349,7 +371,7 @@ int main() {
         for (int iDelta = 0; iDelta < delta_cuts.size(); iDelta++) { 
             if (debug) cout << "Beginning delta cut " << iDelta << endl;
 
-            TLegend *legend = new TLegend(.1,.7,.28,.9);
+            TLegend *legend = new TLegend(.1,.7,.3,.9);
 
             c1->cd();
 
@@ -368,12 +390,20 @@ int main() {
 
 
                 if (iFile == 0) {
-                    delta_cut->SetTitle(all_lunds[iFile][i_pTCut]->GetTitle() + space + ": ln(R0/R) =" + space + delta_cuts[iDelta] + "; ln(kt); weighted, normalized counts");
+                    delta_cut->SetTitle(all_lunds[iFile][i_pTCut]->GetTitle() + space + ": " + lund_xAxis + " = " + delta_cuts[iDelta] + ";" + lund_yAxis + ";" + cut_yAxis);
                     first_hist = delta_cut;
-                    delta_cut->Draw("HIST" "PLC");
+
+                    delta_cut->SetLineColor(iFile + 1); // to make first one red
+                    delta_cut->Draw("HIST");
+
+                    //delta_cut->Draw("HIST" "PLC");
                     delta_cut->SetStats(false); // no stat box
                 }
-                else delta_cut->Draw("HIST" "SAME" "PLC");
+                else {
+                    delta_cut->SetLineColor(iFile + 1);
+                    delta_cut->Draw("HIST" "SAME");
+                    //delta_cut->Draw("HIST" "SAME" "PLC");
+                }
             
                 legend->AddEntry(delta_cut, file_short_names[iFile], "l");
             }
@@ -382,7 +412,7 @@ int main() {
             c1->Update();
 
             // Add the reference
-            TPad* pad = new TPad("pad", "pad", .8, .75, .95, .95);
+            TPad* pad = new TPad("pad", "pad", .75, .65, 1, .93);
             pad->Draw();
             pad->cd(); // Switch to smaller pad
             TH2F* ref_copy = (TH2F*)all_lunds[0][i_pTCut]->Clone();

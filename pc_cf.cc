@@ -36,9 +36,22 @@ void AddTextNote(TH1F* hist, double xValue, const char* text, Color_t color = kB
 
 int main() {
 
+    /*
     TString eventFileName = "event_test.root";
     vector<TString> backgroundFileNames = {"backgrounds14ka.root", "backgrounds14kb.root"};
+    */
 
+    TString eventFileName = "event_Zoltans.root";
+    vector<TString> backgroundFileNames = {
+        
+        "backgrounds2.7m.a.root", 
+        "backgrounds2.7m.b.root",
+        "backgrounds2.7m.c.root",
+        "backgrounds2.7m.d.root",
+        "backgrounds2.7m.e.root",
+        "backgrounds2.7m.f.root"
+         
+    };
     TString output_file_name = "jet vs pc tracks";
 
     bool debug = false;
