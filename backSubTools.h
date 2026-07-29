@@ -159,7 +159,7 @@ class my_pc_subtractor {
         part_eta_max = part_eta_max_in;
         //r_recluster = r_recluster_in;
 
-        set_pc_cfs();
+        //set_pc_cfs();
     }
 
     fastjet::Selector r_selector;

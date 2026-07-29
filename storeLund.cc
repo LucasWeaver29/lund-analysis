@@ -31,25 +31,25 @@ int main() {
 
     
     //unified_sub_options lund_ops = unified_sub_options{.name = "MyPC, with cf, SD (mine, all), from event_test", .jet_sub = jet_subtraction::PC_with_cf, .groom_op = groom_option::SD_mine_all};
-    unified_sub_options lund_ops = unified_sub_options{.name = "ConSub, sel_max_pt, from event_test", .event_sub = event_subtraction::ConSub, .groom_op = groom_option::null};
+    unified_sub_options lund_ops = unified_sub_options{.name = "RSD (contribs), SD (mine, all), from event_Zoltans", .jet_sub = jet_subtraction::RSD_contrib, .groom_op = groom_option::SD_mine_all};
 
     bool embed_in_bg = true;
 
-    //TString eventFileName = "event_Zoltans.root";
+    TString eventFileName = "event_Zoltans.root";
     
-    TString eventFileName = "event_test.root";
+    //TString eventFileName = "event_test.root";
 
     vector<TString> backgroundFileNames = {
-        "backgrounds14ka.root",
-        "backgrounds14kb.root"
-        /*
+        //"backgrounds14ka.root",
+        //"backgrounds14kb.root"
+        
         "backgrounds2.7m.a.root", 
         "backgrounds2.7m.b.root",
         "backgrounds2.7m.c.root",
         "backgrounds2.7m.d.root",
         "backgrounds2.7m.e.root",
         "backgrounds2.7m.f.root"
-        */
+        
         
     };
     //"thermalBackgrounds9000,etaMax=2.root";
@@ -178,7 +178,7 @@ int main() {
 
     met.close_file();
     mbt.close_file();
-    lund_groomer.jet_subtractor.pc_subtractor.close_cf_file();
+    //lund_groomer.jet_subtractor.pc_subtractor.close_cf_file();
 
 
 
