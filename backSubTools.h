@@ -159,7 +159,7 @@ class my_pc_subtractor {
         part_eta_max = part_eta_max_in;
         //r_recluster = r_recluster_in;
 
-        //set_pc_cfs();
+        set_pc_cfs();
     }
 
     fastjet::Selector r_selector;
@@ -328,7 +328,6 @@ class my_pc_subtractor {
     // Same as above, but takes particles from both pcs. Halves the kt of each ghost to account for the second cone. Applies correction factors
     vector<fastjet::PseudoJet> sub_with_cf_constit(const fastjet::PseudoJet& jet, vector<fastjet::PseudoJet> particles) {        
 
-        //cout << "Jet area from sub_with_cf: " << jet.area() << endl;
 
         fastjet::PseudoJet pc_axis1, pc_axis2;
 

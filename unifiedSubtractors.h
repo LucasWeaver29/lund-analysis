@@ -230,7 +230,8 @@ class JetSubtractor {
             *jet = pruner(*jet);
         }
         else if (sub == jet_subtraction::RSD_contrib) {
-            *jet = rsd(*jet);
+            cs_ptr = std::make_unique<fastjet::ClusterSequence>(rsd(*jet).constituents(), jet_def_recluster);
+            *jet = fastjet::sorted_by_pt(cs_ptr->inclusive_jets())[0];
         }
 
 
